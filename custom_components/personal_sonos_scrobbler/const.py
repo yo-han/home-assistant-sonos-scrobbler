@@ -2,7 +2,7 @@
 
 DOMAIN = "personal_sonos_scrobbler"
 CONFIG_VERSION = 2
-CONFIG_MINOR_VERSION = 3
+CONFIG_MINOR_VERSION = 4
 FEATURES_MINOR_VERSION = 2  # the minor version that split the delivery mode
 CONF_ENTITY_REGISTRY_ID = "entity_registry_id"  # version 1 only; migrated away
 CONF_ENTITY_REGISTRY_IDS = "entity_registry_ids"
@@ -27,6 +27,7 @@ CONF_LASTFM_LINK_REVISION = "lastfm_link_revision"
 MODE_OBSERVATION_ONLY = "observation_only"
 MODE_DELIVERY_ENABLED = "delivery_enabled"
 ESTIMATE_BASIS = "ha_reported_playback"
-TITLE = "Personal Sonos Scrobbler"
+TITLE = "Home Assistant Sonos Scrobbler"
 LEGACY_TITLE = "Sonos observation pilot"  # the default up to 0.7.0
+LEGACY_TITLES = (LEGACY_TITLE, "Personal Sonos Scrobbler")
 SIGNAL_LASTFM_LINK_CHANGED = f"{DOMAIN}_lastfm_link_changed_{{}}"

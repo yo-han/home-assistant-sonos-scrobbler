@@ -122,5 +122,5 @@ def test_readme_states_what_the_sensor_shows_and_where_it_ends_up() -> None:
 
 
 def test_readme_names_the_current_package() -> None:
-    assert "personal_sonos_scrobbler-0.8.0.zip" in README
+    assert "personal_sonos_scrobbler-0.8.1.zip" in README
     assert "0.1.0.zip" not in README

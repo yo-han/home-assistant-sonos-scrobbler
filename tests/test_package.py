@@ -25,7 +25,7 @@ def test_build_is_byte_identical(tmp_path: Path) -> None:
     first = build_package(ROOT, tmp_path / "first")
     second = build_package(ROOT, tmp_path / "second")
 
-    assert first.name == "personal_sonos_scrobbler-0.8.0.zip"
+    assert first.name == "personal_sonos_scrobbler-0.8.1.zip"
     assert first.read_bytes() == second.read_bytes()
 
 

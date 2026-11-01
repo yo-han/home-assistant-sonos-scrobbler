@@ -1,4 +1,4 @@
-# Personal Sonos Scrobbler 0.8.0
+# Home Assistant Sonos Scrobbler 0.8.0
 
 The first public version of a Home Assistant custom integration that observes Spotify
 on the Sonos speakers you include. It shows the current track and speaker on local
@@ -36,7 +36,7 @@ integration reads Sonos and never sends speaker commands.
 
 **HACS custom repository:** in HACS choose **Custom repositories**, add
 `https://github.com/yo-han/home-assistant-sonos-scrobbler` with type **Integration**,
-install **Personal Sonos Scrobbler** and restart Home Assistant.
+install **Home Assistant Sonos Scrobbler** and restart Home Assistant.
 
 **Manual package:** download `personal_sonos_scrobbler-0.8.0.zip` and its `.sha256` file
 from this release, verify with

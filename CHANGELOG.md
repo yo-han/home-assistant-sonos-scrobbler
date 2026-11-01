@@ -2,13 +2,21 @@
 
 Versions follow the integration's `manifest.json`.
 
+## 0.8.1 (2026-11-01)
+
+- Use Home Assistant Sonos Scrobbler in Home Assistant, HACS, documentation and the
+  editable brand asset.
+- Update the earlier default entry and device names on upgrade. Keep custom names,
+  entity IDs, the Last.fm account, speaker selections and both delivery switches.
+- Keep the integration domain and storage identities unchanged for existing installs.
+
 ## 0.8.0 (2026-11-01)
 
 The first public version.
 
 - Name each speaker switch after the speaker alone, without a prefix. Entity ids and
   names you set yourself stay as they were.
-- Name new installations Personal Sonos Scrobbler and replace the old default name on
+- Name new installations consistently and replace the old pilot name on
   upgrade; a title you chose stays.
 - Complete the English and Dutch interface.
 - Add no switch to a platform that is unloading or already unloaded when the speaker

@@ -12,7 +12,7 @@ from .const import (
     CONFIG_MINOR_VERSION,
     CONFIG_VERSION,
     FEATURES_MINOR_VERSION,
-    LEGACY_TITLE,
+    LEGACY_TITLES,
     TITLE,
 )
 from .controls import migrated_features
@@ -50,7 +50,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: PilotConfigEntry) -> b
     hass.config_entries.async_update_entry(
         entry,
         data=data,
-        title=TITLE if entry.title == LEGACY_TITLE else entry.title,
+        title=TITLE if entry.title in LEGACY_TITLES else entry.title,
         version=CONFIG_VERSION,
         minor_version=CONFIG_MINOR_VERSION,
     )

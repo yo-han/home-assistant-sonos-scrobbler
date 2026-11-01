@@ -1,5 +1,5 @@
 {
-  "name": "Personal Sonos Scrobbler",
+  "name": "Home Assistant Sonos Scrobbler",
   "homeassistant": "2026.10.4",
   "hide_default_branch": true
 }
