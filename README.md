@@ -13,7 +13,9 @@ Home Assistant, and only when you turn on a switch.
 
 ## Requirements
 
-- Home Assistant Core 2026.10.4 or newer. Tests run on 2026.10.4.
+- Home Assistant Core 2026.10.4 or newer. The full test suite runs on 2026.10.4;
+  separate runtime checks cover Marketplace installation and migration on 2026.11.0b1.
+  See [compatibility verification](docs/marketplace.md) for scope and limits.
 - The built-in Sonos integration, set up with at least one enabled speaker.
 - Spotify playing on Sonos. Other sources are not sent.
 - For sending to Last.fm: a Last.fm account and your own free API application. The
@@ -29,9 +31,37 @@ ListenBrainz support and there are no per-room or per-person accounts.
 
 ## Installation
 
-Install through HACS as a custom repository, or use the manual package from a release.
+Use the built-in Marketplace on Home Assistant 2026.11 or newer, HACS on
+2026.10.4, or the manual package from a release. This is a community integration.
+It is not included in the shared Marketplace/HACS catalog yet; add its repository
+using the instructions below.
 
-### HACS custom repository
+[![Open the repository in Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=yo-han&repository=home-assistant-sonos-scrobbler&category=integration)
+
+The button opens HACS before 2026.11 and Marketplace from 2026.11 onwards.
+
+### Marketplace: Home Assistant 2026.11 or newer
+
+Home Assistant 2026.11 is currently in beta, with its stable release planned for
+November 4, 2026. These instructions follow the
+[official Marketplace documentation](https://contributors.home-assistant.io/marketplace/how-it-works/).
+
+1. Open **Settings → Marketplace** as an administrator. Marketplace comes with
+   Home Assistant; no separate HACS installation is needed.
+2. Read and accept the community-project notice before installing anything.
+3. Choose **Add from link** and enter
+   `https://github.com/yo-han/home-assistant-sonos-scrobbler`.
+   Choose **Integration** if asked for the type.
+4. Connect GitHub when prompted. Adding a repository outside the shared catalog
+   requires a GitHub connection, even though catalog installations do not.
+5. Install **Home Assistant Sonos Scrobbler**. On a clean first installation,
+   continue into its setup flow without restarting. If Home Assistant already
+   loaded this integration, follow the restart repair first.
+
+Updates appear under **Settings → Updates**. Updating an integration that is
+already loaded still requires a Home Assistant restart.
+
+### HACS: Home Assistant 2026.10.4
 
 1. In HACS, open the menu and choose **Custom repositories**.
 2. Add `https://github.com/yo-han/home-assistant-sonos-scrobbler` with type **Integration**.
@@ -40,8 +70,21 @@ Install through HACS as a custom repository, or use the manual package from a re
 HACS offers releases only, not the development branch. It installs just the
 `custom_components/personal_sonos_scrobbler/` folder.
 
-A custom repository is something you add yourself. The integration is not in the HACS
-default catalog; that listing is a separate, later review by the HACS project.
+Continue with [Setup](#setup) after restarting.
+
+### Moving from HACS to Marketplace
+
+Take a backup before upgrading Home Assistant. From 2026.11, Home Assistant
+automatically takes over HACS's installed projects, custom repositories and update
+entities. Existing HACS links open Marketplace. Do not install HACS again or remove
+and re-add this integration during the transition.
+
+This integration keeps its existing domain, `personal_sonos_scrobbler`, and storage
+identities. Keep its configuration entry: it holds the Last.fm account and speaker
+choices. An upgrade must preserve those choices and the two delivery switches;
+it must not turn scrobbling on. Verify them after the Home Assistant upgrade.
+See [compatibility verification](docs/marketplace.md) for the exact versions tested
+and the distinction between automated tests and a live installation.
 
 ### Manual package
 

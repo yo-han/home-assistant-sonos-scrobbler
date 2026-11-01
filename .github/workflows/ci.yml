@@ -25,3 +25,16 @@ jobs:
         run: make test
         env:
           UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
+
+  marketplace:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify clean install and HACS migration in isolated runtimes
+        run: python3 tests/marketplace/run.py --output "${{ runner.temp }}/marketplace-check"
+        env:
+          GH_TOKEN: ${{ github.token }}
