@@ -34,6 +34,8 @@ release. All credentials and listening data are synthetic.
 Home Assistant runs on a separate **internal Docker network**, with no published
 ports, no production mounts, no Docker socket and a read-only root filesystem. Its
 only writable data is the disposable configuration directory and temporary files.
+Containers run with the host user's UID and GID, so Home Assistant's private storage
+keeps the same owner between phases on native Linux as well as Docker Desktop.
 Recorded GitHub responses and the candidate archive are replayed over loopback
 HTTP. The runner removes its own containers and network, including on a test failure.
 It retains the configuration directories and reports for inspection.

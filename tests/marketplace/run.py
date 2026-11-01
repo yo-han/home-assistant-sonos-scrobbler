@@ -177,6 +177,10 @@ def docker_run(phase, image, config, fixtures, output, network):
         "--rm",
         "--name",
         container,
+        # Native Linux bind mounts keep the container's numeric owner. Keep HA's
+        # private storage readable/writable by the host runner between phases.
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
         "--memory",
         "1g",
         "--cpus",
