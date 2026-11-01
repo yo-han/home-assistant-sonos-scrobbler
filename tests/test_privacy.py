@@ -93,6 +93,7 @@ async def test_canaries_absent_from_sensor_logs_and_diagnostics(
 
 async def test_diagnostics_hold_no_entity_id_or_entry_data(
     hass: HomeAssistant,
+    release_version: str,
     loaded_pilot: MockConfigEntry,
     sonos_player: er.RegistryEntry,
 ) -> None:
@@ -103,7 +104,7 @@ async def test_diagnostics_hold_no_entity_id_or_entry_data(
     assert sonos_player.id not in serialized
     assert loaded_pilot.entry_id not in serialized
     assert diagnostics["entity_present"] is True
-    assert diagnostics["version"] == "0.8.1"
+    assert diagnostics["version"] == release_version
     assert diagnostics["mode"] == "observation_only"
     assert diagnostics["delivery_status"] == "disabled"
     assert diagnostics["pending_count"] == 0

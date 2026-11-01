@@ -2,13 +2,17 @@
 
 Versions follow the integration's `manifest.json`.
 
-## Unreleased
+## 0.8.2 (2026-11-01)
 
 - Document Marketplace installation on Home Assistant 2026.11 and migration from
   HACS, while retaining installation on the supported 2026.10.4 minimum.
 - Categorize the integration under music and radio services for Marketplace.
 - Keep the component domain, stored account, speaker choices and delivery flags
   unchanged during the store transition.
+- Verify published release archives with the same isolated installation and HACS
+  migration checks as the release candidate.
+- Run test containers as the host user to preserve private storage ownership on Linux.
+- Make asynchronous delivery CI checks deterministic without changing delivery behavior.
 
 ## 0.8.1 (2026-11-01)
 

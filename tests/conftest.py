@@ -1,5 +1,6 @@
 """Shared fixtures of the test suite."""
 
+import tomllib
 from collections.abc import AsyncIterator
 from datetime import timedelta
 from pathlib import Path
@@ -24,6 +25,13 @@ from tests.delivery_harness import Pilot
 from tests.helpers import Advance, Room, entry_data
 from tests.lastfm_server import LastFmServer
 from tests.outbox_support import T0
+
+
+@pytest.fixture
+def release_version() -> str:
+    """Use project metadata as the independent release-version contract."""
+    project = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    return str(project["project"]["version"])
 
 
 @pytest.fixture(autouse=True)

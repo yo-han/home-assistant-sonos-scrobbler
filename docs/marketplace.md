@@ -31,6 +31,19 @@ In GitHub Actions, a read-only `GH_TOKEN` avoids the anonymous API rate limit. T
 candidate archive is built from this checkout, not downloaded from an unpublished
 release. All credentials and listening data are synthetic.
 
+Before publication, CI uses metadata from the pinned `v0.8.1` fixture ref and
+installs the current checkout's candidate archive. This avoids depending on a tag
+that does not exist yet. After publishing, verify the real public source archive:
+
+```sh
+python3 tests/marketplace/run.py --published-release v0.8.2 \
+  --output /tmp/sonos-marketplace-published-0.8.2
+```
+
+This mode downloads the public tag's actual source ZIP anonymously and installs it
+through the same Marketplace backend. Installed component hashes must match this
+checkout. The report records the ref and whether the archive was published.
+
 Home Assistant runs on a separate **internal Docker network**, with no published
 ports, no production mounts, no Docker socket and a read-only root filesystem. Its
 only writable data is the disposable configuration directory and temporary files.
