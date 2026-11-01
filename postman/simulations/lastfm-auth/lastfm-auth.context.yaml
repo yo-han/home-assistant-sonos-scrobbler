@@ -1,0 +1,286 @@
+# Handoff record for lastfm-auth. Members are in lastfm-auth.sim.yaml, the handler in
+# postman/mocks/lastfm/default.js and the runner in scripts/run_lastfm_simulation.py.
+# All values are synthetic. A mock success is never proof of the real provider.
+purpose:
+  stands_in_for: >-
+    The two Last.fm auth methods the integration calls, auth.getToken and
+    auth.getSession, at the form POST endpoint.
+  unblocks: >-
+    Exercising the real LastFmClient without credentials or a Last.fm account.
+    Intended outcome only: real-API compatibility stays unproven until a test
+    with an owned application.
+
+assumptions:
+  - id: stand-in-provenance
+    status: unknown
+    claim: The hand-written mock matches how Last.fm behaves for these two methods.
+    reason: >-
+      The mock was written from the public documentation, not taken from the
+      provider. Nothing compares it with the running service.
+    verification: >-
+      No search for an existing provider mock was performed. Nothing was pushed,
+      deployed, bound or signed in. An authorized run with an owned application
+      would settle this.
+    source: postman/mocks/lastfm/default.js; https://www.last.fm/api/authspec
+    updated_at: "2026-10-31"
+
+  - id: client-outcomes-under-the-stand-in
+    status: supported
+    claim: >-
+      Against this synthetic mock only, over loopback at fingerprint f1, the real
+      LastFmClient reaches the expected outcome in seven cases: success,
+      unapproved then approved, API rate limit under HTTP 200, malformed body,
+      oversized valid body, wrong signature and an injected HTTP 429.
+    reason: >-
+      The run records the client's own outcomes and the routes the member saw.
+      This covers caller behavior under the model, not any provider behavior.
+    verification: >-
+      On 2026-10-31 at f1, `make simulate` passed all 7 cases. The member served
+      9 requests, all POST / with status 200, and the injected 429 was judged on
+      the client outcome because injected faults are not logged. lsof showed
+      three listeners, all on 127.0.0.1, and the routed port was closed after
+      SIGINT to the runner's own process group.
+    source: >-
+      scripts/run_lastfm_simulation.py; postman/mocks/lastfm/default.js;
+      `make simulate` output at f1
+    updated_at: "2026-10-31"
+
+  - id: form-post-accepted-for-auth-methods
+    status: supported
+    claim: Both auth methods accepted form POST for the observed owned-app link.
+    reason: >-
+      The client sends credentials in the body so they stay out of API URLs, while
+      the REST docs show read examples as GET. Secondary evidence supports the
+      approach. Both methods have now completed for one owned application;
+      this does not establish all provider conditions or error cases.
+    verification: >-
+      pyLast's shared transport calls client.post(..., data=params), read from
+      its source. That is not a live test of these
+      JSON auth calls, and pyLast is not a dependency. The mock answers 501 to
+      anything but POST, which only shows what it models. A live owned-app attempt
+      through installed 0.2.1 on 2026-10-31 reached token_shape with present=True,
+      string=True, length=32. That path requires a parsed JSON object under HTTP 200;
+      form POST was therefore observed for getToken. The subsequent owned-app
+      0.2.2 retry completed account confirmation and set lastfm_linked=true,
+      supporting both form POST methods for this app/attempt (see f4).
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm.py:_async_post;
+      https://www.last.fm/api/rest;
+      https://github.com/pylast/pylast/blob/main/src/pylast/__init__.py
+    updated_at: "2026-10-31"
+
+  - id: format-json-in-post-body
+    status: supported
+    claim: A format=json field in the POST body selected JSON for observed getToken calls.
+    reason: >-
+      Both the invalid-key probe and the owned-app retry reached parsed JSON;
+      this is observed for getToken, not yet for getSession.
+    verification: >-
+      Historically only the mock was exercised, requiring the field by construction.
+      On 2026-10-31 a real HTTPS POST to the fixed endpoint with deliberately invalid
+      all-zero API key and signature returned HTTP 403, application/json, integer
+      error 10 when format=json was in the body. Omitting format returned XML.
+      Moving format to the query also returned JSON. Accept-Encoding identity and
+      the Home Assistant User-Agent produced the same JSON error without encoding.
+      Subsequently the owned-app retry through installed 0.2.1 reached token_shape
+      (present=True, string=True, length=32), which requires HTTP 200 and a parsed
+      object. This supports getToken JSON selection on that success path too;
+      getSession remains unverified. No real token or credentials were inspected.
+    source: custom_components/personal_sonos_scrobbler/lastfm.py:_async_request
+    updated_at: "2026-10-31"
+
+  - id: get-token-json-shape
+    status: supported
+    claim: The observed owned-app getToken response held a string token in a JSON object.
+    reason: >-
+      Installed 0.2.1 logged only token shape after successful JSON/status validation.
+      The historical mock was synthetic and did not establish this on its own.
+    verification: >-
+      On 2026-10-31 the user retried their own app in Home Assistant. The filtered
+      log showed token_shape (present=True, string=True, length=32). No token value,
+      raw response or credentials were inspected.
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm.py:async_create_token;
+      https://www.last.fm/api/show/auth.getToken
+    updated_at: "2026-10-31"
+
+  - id: request-token-is-32-hex
+    status: conflicting
+    claim: Request tokens are always exactly 32 hexadecimal characters.
+    reason: >-
+      The getSession parameter page describes a hexadecimal MD5 token, but the
+      real getToken reply was refused by the exact hexadecimal validator despite
+      being a 32-character string. Documentation and observed behavior conflict.
+    verification: >-
+      The installed 0.2.1 warning on 2026-10-31 was token_shape (present=True,
+      string=True, length=32); at this revision that is emitted only after a failed
+      32-hex fullmatch. The actual token was never inspected. Version 0.2.2 treats
+      it as opaque printable text bounded to 128 characters and preserves it
+      unchanged. The mock now uses an invented non-hex 32-character value.
+      Tests first failed on the old validator, then passed after the correction.
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm.py:async_create_token;
+      https://www.last.fm/api/show/auth.getSession;
+      Home Assistant 0.2.1 fixed-category warning observed on 2026-10-31
+    updated_at: "2026-10-31"
+
+  - id: get-session-json-shape
+    status: supported
+    claim: The observed owned-app session response passed the session name/key checks.
+    reason: >-
+      The docs name these fields. The client ignores `subscriber` because its JSON
+      type is undocumented. Confirmation can only complete after parsed JSON
+      contains a session object with printable, bounded name/key strings.
+    verification: >-
+      Historically the mock alone returned this shape. On 2026-10-31 a user
+      completed authorization and confirmation in installed 0.2.2 at f4, then
+      Home Assistant's sensor showed lastfm_linked=true. No account name, token,
+      session key, credential or raw response was inspected. This establishes
+      the accepted shape for this one exchange, not a general provider guarantee.
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm.py:async_create_session;
+      https://www.last.fm/api/show/auth.getSession
+    updated_at: "2026-10-31"
+
+  - id: session-key-shape
+    status: unknown
+    claim: A session key fits the accepted form, printable text of at most 128 characters.
+    reason: The docs show a 32-hex example but do not specify the form normatively.
+    verification: Not observed on the real service. The mock's key is invented.
+    source: custom_components/personal_sonos_scrobbler/lastfm.py:_is_bounded_text
+    updated_at: "2026-10-31"
+
+  - id: account-name-shape
+    status: unknown
+    claim: >-
+      Account names fit the accepted form, printable text of at most 128 characters
+      without a backtick.
+    reason: The confirmation step renders the name in a code span.
+    verification: Not observed on the real service. The mock's name is invented.
+    source: custom_components/personal_sonos_scrobbler/lastfm.py:_is_account_name
+    updated_at: "2026-10-31"
+
+  - id: http-status-of-api-errors
+    status: unknown
+    claim: Last.fm may report an API error under any HTTP status.
+    reason: >-
+      The docs give no status, so an integer error code wins over the status and
+      a retryable code 14 works either way.
+    verification: >-
+      Pytest covers codes under 200 and 403. The mock uses 200 only. A real POST on
+      2026-10-31 with deliberately invalid all-zero key and signature returned
+      HTTP 403 and integer error 10. No other real error code or status was observed;
+      the client still treats the API code independently of HTTP status.
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm.py:_async_request;
+      tests/test_lastfm_http.py; https://www.last.fm/api/rest
+    updated_at: "2026-10-31"
+
+  - id: safe-rejection-diagnostics
+    status: supported
+    claim: >-
+      At f2, rejected synthetic token replies report a fixed category without
+      logging provider values; the existing seven simulation outcomes are unchanged.
+    reason: >-
+      Socket tests assert the category and the absence of synthetic credentials,
+      token, account name, arbitrary provider fields and message canaries. API
+      error numbers outside 0..999 are replaced with a fixed marker.
+    verification: >-
+      On 2026-10-31 all 394 tests passed. make simulate again passed all seven cases,
+      observing nine POST / requests under 200 plus the injected HTTP 429 outcome.
+      The simulation reported three loopback listeners and a closed routed port
+      after shutdown. This does not establish the real owned-app failure category;
+      that requires a retry after installing 0.2.1.
+    source: tests/test_lastfm_http.py; scripts/run_lastfm_simulation.py; make test; make simulate
+    updated_at: "2026-10-31"
+
+  - id: outcomes-unchanged-at-the-release-candidate
+    status: supported
+    claim: >-
+      At f8, on the 0.8.0 runtime, the real LastFmClient reaches the same seven
+      outcomes against this synthetic mock. This says nothing new about the provider.
+    reason: >-
+      The run repeats client-outcomes-under-the-stand-in on the release candidate.
+      The account client did not change for this release.
+    verification: >-
+      On 2026-11-01 at f8, `make simulate` passed all 7 cases. The member served 9
+      requests, all POST / with status 200, and none failed; the injected 429 was
+      judged on the client outcome. The run reported three listeners, all on
+      127.0.0.1, and the routed port closed after SIGINT.
+    source: scripts/run_lastfm_simulation.py; `make simulate` output at f8
+    updated_at: "2026-11-01"
+
+  - id: opaque-token-regression
+    status: supported
+    claim: >-
+      At f3 the client preserves bounded printable non-hex tokens through URL
+      encoding, form encoding, request signing and the confirmed account flow.
+    reason: >-
+      Five round-trip cases first failed under the old validator and passed after
+      the fix. Both hex and non-hex tokens complete the tested account flow; empty,
+      oversized and control-character tokens still fail. Synthetic values only.
+    verification: >-
+      All 402 tests passed on 2026-10-31. Seven local simulation scenarios passed
+      with a synthetic 32-character non-hex token; nine POST / requests reached
+      the mock, plus the injected 429 judged by client outcome. The runner now
+      exchanges the returned token rather than a separately hard-coded value.
+      Listeners were loopback-only and the routed port closed after shutdown.
+      This initially still required installing 0.2.2 and a new owned-app retry.
+      That retry subsequently completed; see owned-app-link-completed at f4.
+    source: >-
+      tests/test_lastfm_http.py; tests/test_lastfm_flow.py;
+      scripts/run_lastfm_simulation.py; postman/mocks/lastfm/default.js
+    updated_at: "2026-10-31"
+
+  - id: owned-app-link-completed
+    status: supported
+    claim: One owned-app Last.fm desktop authorization completed on Home Assistant 0.2.2.
+    reason: >-
+      The user reported completion after the token fix. The sensor independently
+      confirmed lastfm_linked=true while mode remained observation_only.
+    verification: >-
+      On 2026-10-31 at f4, the user supplied their own credentials and provider
+      consent in their browser. After account confirmation the Home Assistant UI
+      exposed only the stored-link boolean. It read true and observation_only,
+      without inspecting credentials, account name, token, session key, provider
+      URL or raw payload. No scrobble/Now Playing client existed at that version.
+      Failure modes remain simulation evidence; ongoing revocation is not checked.
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm_flow.py;
+      the Observation status sensor in the UI;
+      user confirmation on 2026-10-31
+    updated_at: "2026-10-31"
+
+fingerprints:
+  - id: f1
+    date: "2026-10-31"
+    version: 0.2.0
+    cli: postman 1.75.0
+  - id: f2
+    date: "2026-10-31"
+    version: 0.2.1 development tree
+    cli: postman 1.75.0
+  - id: f3
+    date: "2026-10-31"
+    version: 0.2.2 development tree
+    cli: postman 1.75.0
+  - id: f4
+    date: "2026-10-31"
+    version: 0.2.2
+    cli: postman 1.75.0
+  - id: f5
+    date: "2026-11-01"
+    version: 0.5.0 development tree
+    cli: postman 1.75.0
+  - id: f6
+    date: "2026-11-01"
+    version: 0.5.0 with the switch order and period boundary fix
+    cli: postman 1.75.0
+  - id: f7
+    date: "2026-11-01"
+    version: 0.5.0 with the period clock read after the query
+    cli: postman 1.75.0
+  - id: f8
+    date: "2026-11-01"
+    version: 0.8.0 release candidate
+    cli: postman 1.75.0

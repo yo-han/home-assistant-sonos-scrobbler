@@ -1,0 +1,173 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select Sonos players",
+        "description": "This integration only reads your Sonos players and never controls them. Nothing is sent to Last.fm until you link an account and turn on a switch. You may leave this empty: every speaker also gets its own switch on this device.",
+        "data": {
+          "entity_id": "Sonos media players"
+        },
+        "data_description": {
+          "entity_id": "The media players of the built-in Sonos integration to include. A speaker you do not select stays out of everything; a speaker added later starts off."
+        }
+      },
+      "reconfigure": {
+        "title": "Change the selected Sonos players",
+        "description": "Saving works like the speaker switches: it applies at once and starts a new period, so queued plays stay parked. Your Last.fm link and both Last.fm switches are kept.",
+        "data": {
+          "entity_id": "Sonos media players"
+        },
+        "data_description": {
+          "entity_id": "The media players of the built-in Sonos integration to include. A speaker you do not select stays out of everything; a speaker added later starts off."
+        }
+      }
+    },
+    "error": {
+      "not_sonos_media_player": "Select a media player that belongs to the built-in Sonos integration.",
+      "entity_disabled": "This media player is disabled. Enable it first.",
+      "selection_duplicate": "Each media player can be selected only once.",
+      "too_many_players": "Select at most 64 media players."
+    },
+    "abort": {
+      "no_sonos_media_players": "No enabled Sonos media player was found. Set up the Sonos integration first.",
+      "single_instance_allowed": "The integration is already configured. Use Reconfigure to select other players.",
+      "reconfigure_successful": "The selection of players is updated.",
+      "not_running": "The integration is not running, so nothing changed. Start it and try again.",
+      "selection_without_scrobbling": "The speakers are changed, but the local storage failed, so scrobbling is now off. Check the delivery status sensor."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last.fm account and queue",
+        "description": "Linking an account starts nothing. Two switches on this device decide what reaches Last.fm, and both start off: Now Playing to Last.fm and Scrobbling to Last.fm. Scrobbling covers only listens that start after you turn it on. Your Spotify connection to Last.fm keeps sending too, so scrobbling here can create duplicate scrobbles.",
+        "menu_options": {
+          "connect": "Connect a Last.fm account",
+          "replace": "Replace the linked account",
+          "disconnect": "Disconnect the linked account",
+          "clear_queue": "Clear the queued plays"
+        }
+      },
+      "credentials": {
+        "title": "Your Last.fm API application",
+        "description": "Enter the values of your own API application. Your Last.fm password is never needed.",
+        "data": {
+          "api_key": "API key",
+          "shared_secret": "Shared secret"
+        },
+        "data_description": {
+          "api_key": "The 32-character key of your application.",
+          "shared_secret": "Stored exactly as entered, in the Home Assistant configuration."
+        }
+      },
+      "authorize": {
+        "title": "Authorize on Last.fm",
+        "description": "[Open Last.fm]({auth_url}), sign in with the account to link and approve the application. Then return here and submit."
+      },
+      "confirm": {
+        "title": "Confirm the account",
+        "description": "Last.fm authorized `{account_name}`. Link this account?",
+        "menu_options": {
+          "confirm_link": "Link this account",
+          "cancel_link": "Cancel, this is the wrong account"
+        }
+      },
+      "disconnect": {
+        "title": "Disconnect Last.fm",
+        "description": "This deletes the saved keys and session from Home Assistant only. It does not revoke the access on Last.fm: do that yourself in your Last.fm settings."
+      },
+      "clear_queue": {
+        "title": "Clear the queue",
+        "description": "This deletes the plays that are waiting to be sent, together with their metadata, from the local queue. Copies in existing backups remain. Plays that were already sent stay on Last.fm."
+      }
+    },
+    "error": {
+      "invalid_api_key": "The API key must be exactly 32 hexadecimal characters.",
+      "invalid_shared_secret": "Enter the shared secret on one line, with at most 128 characters.",
+      "token_not_authorized": "Last.fm has not seen your approval yet. Approve the application and submit again.",
+      "token_invalid": "This authorization is no longer valid. Start again.",
+      "invalid_credentials": "Last.fm rejected the API key or shared secret.",
+      "api_key_suspended": "Last.fm has suspended this API key.",
+      "rate_limited": "Last.fm is rate limiting this API key. Wait a moment and try again.",
+      "provider_unavailable": "Last.fm cannot be reached right now. Try again later.",
+      "unexpected_response": "Last.fm sent an unexpected response."
+    },
+    "abort": {
+      "linked": "The Last.fm account is linked. Nothing is sent until you turn on a switch.",
+      "disconnected": "The Last.fm account is disconnected from Home Assistant. Revoke the access in your Last.fm settings if you want it gone there too.",
+      "link_cancelled": "Nothing changed.",
+      "link_expired": "This authorization took too long. Nothing changed; start again.",
+      "token_invalid": "This authorization is no longer valid. Nothing changed; start again.",
+      "stale_link_flow": "The Last.fm link changed in the meantime. Nothing changed by this attempt; start again.",
+      "entry_removed": "The integration was removed. Nothing was saved.",
+      "link_failed": "Last.fm did not complete the authorization. Nothing changed; start again.",
+      "queue_cleared": "The queued plays are deleted.",
+      "stale_delivery_flow": "Scrobbling or the account changed in the meantime. Nothing changed by this attempt; start again.",
+      "storage_error": "The local storage failed, so this change is not confirmed. A link or disconnect was already applied in Home Assistant, and the queue may not have been cleared. Check the delivery status sensor."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Observation status",
+        "state": {
+          "waiting": "Waiting",
+          "observing": "Observing",
+          "suspended": "Suspended",
+          "qualified": "Qualified",
+          "restart_ambiguous": "Restart ambiguous",
+          "excluded": "Excluded"
+        }
+      },
+      "delivery_status": {
+        "name": "Delivery status",
+        "state": {
+          "disabled": "Disabled",
+          "ready": "Ready",
+          "waiting_grace": "Waiting for grace delay",
+          "retrying": "Retrying",
+          "auth_required": "Reauthorization required",
+          "storage_error": "Storage error",
+          "uncertain": "Uncertain"
+        }
+      },
+      "current_track": {
+        "name": "Current track"
+      },
+      "current_speaker": {
+        "name": "Current speaker"
+      }
+    },
+    "switch": {
+      "now_playing": {
+        "name": "Now Playing to Last.fm"
+      },
+      "scrobbling": {
+        "name": "Scrobbling to Last.fm"
+      },
+      "speaker": {
+        "name": "{speaker}"
+      }
+    }
+  },
+  "exceptions": {
+    "link_required": {
+      "message": "Link a Last.fm account first. Nothing was turned on."
+    },
+    "storage_error": {
+      "message": "The local storage failed, so this switch stays off. Check the delivery status sensor."
+    },
+    "changed_meanwhile": {
+      "message": "The switch, the account or the integration changed in the meantime, so this switch stays off."
+    },
+    "speaker_unavailable": {
+      "message": "This speaker is not available right now, so nothing changed."
+    },
+    "too_many_speakers": {
+      "message": "At most 64 speakers can be included. Turn another speaker off first."
+    },
+    "selection_without_scrobbling": {
+      "message": "The speaker change is applied, but the local storage failed, so scrobbling is now off. Check the delivery status sensor."
+    }
+  }
+}

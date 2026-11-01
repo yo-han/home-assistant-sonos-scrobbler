@@ -1,0 +1,14 @@
+simulation: lastfm-auth
+routing: path
+mocks:
+  - name: lastfm
+    routeKey: lastfm
+    path: ../../mocks/lastfm/config.yaml
+  - name: lastfm-rate-limited
+    routeKey: lastfm-rate-limited
+    path: ../../mocks/lastfm/config.yaml
+    scenarios:
+      - overrides:
+          conditions:
+            error:
+              status_code: 429

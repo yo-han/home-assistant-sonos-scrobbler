@@ -1,0 +1,6 @@
+simulation: lastfm-delivery
+routing: path
+mocks:
+  - name: lastfm
+    routeKey: lastfm
+    path: ../../mocks/lastfm/config.yaml

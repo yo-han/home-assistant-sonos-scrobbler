@@ -1,0 +1,173 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Kies Sonos-spelers",
+        "description": "Deze integratie leest je Sonos-spelers alleen uit en bedient ze nooit. Er gaat niets naar Last.fm totdat je een account koppelt en een schakelaar aanzet. Je mag dit leeg laten: elke speaker krijgt ook een eigen schakelaar op dit apparaat.",
+        "data": {
+          "entity_id": "Sonos-mediaspelers"
+        },
+        "data_description": {
+          "entity_id": "De mediaspelers van de ingebouwde Sonos-integratie die meedoen. Een speaker die je niet kiest blijft overal buiten; een later toegevoegde speaker begint uit."
+        }
+      },
+      "reconfigure": {
+        "title": "Wijzig de gekozen Sonos-spelers",
+        "description": "Opslaan werkt als de speakerschakelaars: het geldt meteen en start een nieuwe periode, dus wachtende luisterbeurten blijven geparkeerd. Je Last.fm-koppeling en beide Last.fm-schakelaars blijven behouden.",
+        "data": {
+          "entity_id": "Sonos-mediaspelers"
+        },
+        "data_description": {
+          "entity_id": "De mediaspelers van de ingebouwde Sonos-integratie die meedoen. Een speaker die je niet kiest blijft overal buiten; een later toegevoegde speaker begint uit."
+        }
+      }
+    },
+    "error": {
+      "not_sonos_media_player": "Kies een mediaspeler van de ingebouwde Sonos-integratie.",
+      "entity_disabled": "Deze mediaspeler is uitgeschakeld. Schakel hem eerst in.",
+      "selection_duplicate": "Elke mediaspeler kan maar één keer gekozen worden.",
+      "too_many_players": "Kies maximaal 64 mediaspelers."
+    },
+    "abort": {
+      "no_sonos_media_players": "Er is geen ingeschakelde Sonos-mediaspeler gevonden. Stel eerst de Sonos-integratie in.",
+      "single_instance_allowed": "De integratie is al ingesteld. Gebruik Opnieuw configureren om andere spelers te kiezen.",
+      "reconfigure_successful": "De keuze van spelers is bijgewerkt.",
+      "not_running": "De integratie draait niet, dus er is niets gewijzigd. Start hem en probeer het opnieuw.",
+      "selection_without_scrobbling": "De speakers zijn gewijzigd, maar de lokale opslag faalde, dus scrobbelen staat nu uit. Controleer de sensor Verzendstatus."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Last.fm-account en wachtrij",
+        "description": "Een account koppelen start niets. Twee schakelaars op dit apparaat bepalen wat er naar Last.fm gaat, en ze staan eerst beide uit: Now Playing naar Last.fm en Scrobbelen naar Last.fm. Scrobbelen geldt alleen voor luisterbeurten die beginnen nadat je het aanzet. Je Spotify-koppeling met Last.fm blijft ook versturen, dus scrobbelen via deze integratie kan dubbele scrobbles geven.",
+        "menu_options": {
+          "connect": "Een Last.fm-account koppelen",
+          "replace": "Het gekoppelde account vervangen",
+          "disconnect": "Het gekoppelde account ontkoppelen",
+          "clear_queue": "De wachtrij met luisterbeurten wissen"
+        }
+      },
+      "credentials": {
+        "title": "Je Last.fm-API-applicatie",
+        "description": "Vul de waarden van je eigen API-applicatie in. Je Last.fm-wachtwoord is nooit nodig.",
+        "data": {
+          "api_key": "API-sleutel",
+          "shared_secret": "Shared secret"
+        },
+        "data_description": {
+          "api_key": "De sleutel van 32 tekens van je applicatie.",
+          "shared_secret": "Wordt exact zoals ingevuld bewaard in de Home Assistant-configuratie."
+        }
+      },
+      "authorize": {
+        "title": "Autoriseren op Last.fm",
+        "description": "[Open Last.fm]({auth_url}), meld je aan met het account dat je wilt koppelen en keur de applicatie goed. Kom daarna hier terug en verstuur."
+      },
+      "confirm": {
+        "title": "Bevestig het account",
+        "description": "Last.fm heeft `{account_name}` geautoriseerd. Dit account koppelen?",
+        "menu_options": {
+          "confirm_link": "Dit account koppelen",
+          "cancel_link": "Annuleren, dit is het verkeerde account"
+        }
+      },
+      "disconnect": {
+        "title": "Last.fm ontkoppelen",
+        "description": "Dit verwijdert alleen de opgeslagen sleutels en sessie uit Home Assistant. De toegang op Last.fm wordt niet ingetrokken: doe dat zelf in je Last.fm-instellingen."
+      },
+      "clear_queue": {
+        "title": "Wachtrij wissen",
+        "description": "Dit verwijdert de luisterbeurten die op verzending wachten, samen met hun metadata, uit de lokale wachtrij. Kopieën in bestaande back-ups blijven bestaan. Luisterbeurten die al verstuurd zijn, blijven op Last.fm staan."
+      }
+    },
+    "error": {
+      "invalid_api_key": "De API-sleutel moet precies 32 hexadecimale tekens zijn.",
+      "invalid_shared_secret": "Vul de shared secret in op één regel, met maximaal 128 tekens.",
+      "token_not_authorized": "Last.fm heeft je goedkeuring nog niet gezien. Keur de applicatie goed en verstuur opnieuw.",
+      "token_invalid": "Deze autorisatie is niet meer geldig. Begin opnieuw.",
+      "invalid_credentials": "Last.fm weigert de API-sleutel of shared secret.",
+      "api_key_suspended": "Last.fm heeft deze API-sleutel opgeschort.",
+      "rate_limited": "Last.fm begrenst deze API-sleutel. Wacht even en probeer het opnieuw.",
+      "provider_unavailable": "Last.fm is nu niet bereikbaar. Probeer het later opnieuw.",
+      "unexpected_response": "Last.fm stuurde een onverwacht antwoord."
+    },
+    "abort": {
+      "linked": "Het Last.fm-account is gekoppeld. Er wordt niets verstuurd totdat je een schakelaar aanzet.",
+      "disconnected": "Het Last.fm-account is ontkoppeld van Home Assistant. Trek de toegang in je Last.fm-instellingen in als die daar ook weg moet.",
+      "link_cancelled": "Er is niets gewijzigd.",
+      "link_expired": "Deze autorisatie duurde te lang. Er is niets gewijzigd; begin opnieuw.",
+      "token_invalid": "Deze autorisatie is niet meer geldig. Er is niets gewijzigd; begin opnieuw.",
+      "stale_link_flow": "De Last.fm-koppeling is intussen gewijzigd. Deze poging heeft niets gewijzigd; begin opnieuw.",
+      "entry_removed": "De integratie is verwijderd. Er is niets opgeslagen.",
+      "link_failed": "Last.fm heeft de autorisatie niet afgerond. Er is niets gewijzigd; begin opnieuw.",
+      "queue_cleared": "De wachtrij met luisterbeurten is gewist.",
+      "stale_delivery_flow": "Scrobbelen of het account is intussen gewijzigd. Deze poging heeft niets gewijzigd; begin opnieuw.",
+      "storage_error": "De lokale opslag is mislukt, dus deze wijziging is niet bevestigd. Een koppeling of ontkoppeling is al toegepast in Home Assistant en de wachtrij is mogelijk niet gewist. Controleer de sensor Verzendstatus."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Observatiestatus",
+        "state": {
+          "waiting": "Wachtend",
+          "observing": "Observerend",
+          "suspended": "Onderbroken",
+          "qualified": "Gekwalificeerd",
+          "restart_ambiguous": "Herstart onduidelijk",
+          "excluded": "Uitgesloten"
+        }
+      },
+      "delivery_status": {
+        "name": "Verzendstatus",
+        "state": {
+          "disabled": "Uitgeschakeld",
+          "ready": "Gereed",
+          "waiting_grace": "Wacht op vertraging",
+          "retrying": "Opnieuw proberen",
+          "auth_required": "Opnieuw autoriseren nodig",
+          "storage_error": "Opslagfout",
+          "uncertain": "Onzeker"
+        }
+      },
+      "current_track": {
+        "name": "Huidig nummer"
+      },
+      "current_speaker": {
+        "name": "Huidige speaker"
+      }
+    },
+    "switch": {
+      "now_playing": {
+        "name": "Now Playing naar Last.fm"
+      },
+      "scrobbling": {
+        "name": "Scrobbelen naar Last.fm"
+      },
+      "speaker": {
+        "name": "{speaker}"
+      }
+    }
+  },
+  "exceptions": {
+    "link_required": {
+      "message": "Koppel eerst een Last.fm-account. Er is niets aangezet."
+    },
+    "storage_error": {
+      "message": "De lokale opslag is mislukt, dus deze schakelaar blijft uit. Controleer de sensor Verzendstatus."
+    },
+    "changed_meanwhile": {
+      "message": "De schakelaar, het account of de integratie is intussen gewijzigd, dus deze schakelaar blijft uit."
+    },
+    "speaker_unavailable": {
+      "message": "Deze speaker is nu niet beschikbaar, dus er is niets gewijzigd."
+    },
+    "too_many_speakers": {
+      "message": "Er kunnen maximaal 64 speakers meedoen. Zet eerst een andere speaker uit."
+    },
+    "selection_without_scrobbling": {
+      "message": "De speakerwijziging is doorgevoerd, maar de lokale opslag faalde, dus scrobbelen staat nu uit. Controleer de sensor Verzendstatus."
+    }
+  }
+}

@@ -1,0 +1,278 @@
+# Handoff record for lastfm-delivery. The member is in lastfm-delivery.sim.yaml, the
+# handler in postman/mocks/lastfm/default.js and the runner in
+# scripts/run_delivery_simulation.py. All values are synthetic.
+# This proves client behaviour against a synthetic mock, not the real API.
+purpose:
+  stands_in_for: >-
+    track.scrobble, track.updateNowPlaying and user.getRecentTracks at the form POST
+    endpoint, plus one method only the mock has, simulation.ledger, that reports what
+    it saw per key.
+  unblocks: >-
+    Running the real DeliveryCore, LastFmDeliveryClient, OutboxStore and AsyncOutbox
+    on a real temporary SQLite file through provider faults, without credentials,
+    an account or real traffic. Real-API compatibility stays unproven.
+
+assumptions:
+  - id: stand-in-provenance
+    status: unknown
+    claim: The hand-written mock matches how Last.fm behaves for these three methods.
+    reason: >-
+      The mock was written from the public documentation, not taken from the
+      provider. Nothing compares it with the running service.
+    verification: >-
+      No search for an existing provider mock was performed. Nothing was pushed,
+      deployed, bound or signed in. The run was loopback only, with no login. Only a
+      live run with an owned application would settle this.
+    source: postman/mocks/lastfm/default.js; https://www.last.fm/api
+    updated_at: "2026-10-31"
+
+  - id: worker-outcomes-under-the-stand-in
+    status: supported
+    claim: >-
+      Against this synthetic mock only, all 15 scenarios end with the
+      expected POST count and persisted state, in 31 rows: explicit_retry_11_16 is
+      two rows and http200_api_error is sixteen (twelve write codes, four read codes).
+    reason: >-
+      POST and read counts come from the mock's per-key ledger, states and reasons
+      from the SQLite file. For the four write-ambiguity rows the mock stores the
+      scrobble before it closes the socket, delays or answers.
+    verification: >-
+      On 2026-10-31 at f1, `make simulate-delivery` passed: 27 POSTs and 46 reads over
+      31 rows. The member served 105 requests including simulation.ledger polls: 103
+      with status 200 and 2 with status 500, both from history_failure. Each of the
+      four ambiguous rows made one POST and ended sent with reason history_exact, a
+      reason only the read path writes. restart_in_flight and
+      local_result_commit_failure were in_flight before the restart. lsof showed two
+      listeners, both on 127.0.0.1, and the port was closed after SIGINT. `make
+      simulate` still passed its 7 cases with 9 requests. Both runs were repeated
+      at f2 after changing the result fault to an actual SQLite COMMIT failure;
+      counts and outcomes were identical. The runner verified the failed COMMIT
+      ran once, rolled back metadata stripping, and left in_flight before reopen.
+    source: scripts/run_delivery_simulation.py; `make simulate-delivery` output at f1
+    updated_at: "2026-10-31"
+
+  - id: outcomes-unchanged-at-the-release-candidate
+    status: supported
+    claim: >-
+      At f7, on the 0.8.0 runtime, the 31 worker rows and 7 Now Playing cases end as
+      they did before, against this synthetic mock only.
+    reason: >-
+      The run repeats worker-outcomes-under-the-stand-in and
+      now-playing-under-the-stand-in on the release candidate. It drives the worker
+      and the sender directly, so the Home Assistant lifecycle changes of 0.8.0 are
+      covered by the test suite and not by this run. Nothing here is provider evidence.
+    verification: >-
+      On 2026-11-01 at f7, `make simulate-delivery` passed: 27 POSTs and 46 reads over
+      31 rows, and 8 notices over 7 cases with 0 track.scrobble POSTs, 0 reads, 0
+      stored plays and 0 ledger rows. The four ambiguous rows each made one POST and
+      ended sent with reason history_exact. The member served 120 requests including
+      simulation.ledger polls: 118 with status 200 and 2 with status 500. The run
+      reported two listeners, both on 127.0.0.1, and the port closed after SIGINT.
+    source: scripts/run_delivery_simulation.py; `make simulate-delivery` output at f7
+    updated_at: "2026-11-01"
+
+  - id: runner-differs-from-production
+    status: supported
+    claim: The run is the real worker step, with three named differences.
+    reason: >-
+      The pacing gate is a no-wait gate injected by the runner: it moves the runner's
+      clock instead of waiting, and the real RequestPacer stays in the path. The
+      request deadline is 1 second instead of 10, set through lastfm like API_ROOT.
+      The runner drives DeliveryCore itself, so DeliveryService, Home Assistant and
+      the entry fence are not part of this run; the fixed fence is always current.
+    verification: >-
+      A restart is a new OutboxStore.open on the same file. A cancelled step stands
+      in for a process that died mid-POST. At f1, the lost-commit scenario raised a
+      store failure before SQLite. The correction at f2 uses a runner-only
+      sqlite3.Connection subclass: real finalize runs its UPDATE, COMMIT raises
+      sqlite3.OperationalError, and connection close rolls back the transaction.
+      The runner requires exactly one injected COMMIT failure and verifies the
+      in_flight row still has its original metadata before reopening. This models a
+      transaction failure, not a physical disk or power-loss experiment. Production
+      has no test hook.
+    source: scripts/run_delivery_simulation.py
+    updated_at: "2026-10-31"
+
+  - id: now-playing-under-the-stand-in
+    status: supported
+    claim: >-
+      Against this synthetic mock only, a repeated track sends one notice, a new track
+      one more, and an ignored, malformed, timed-out or rejected notice is never sent
+      again. A notice writes no scrobble and no ledger row.
+    reason: >-
+      Seven cases start at normalize_state and run the real StreamSet,
+      NowPlayingBoard, NoticeSender, RequestPacer, client and SQLite gates. Notice,
+      POST and read counts come from the mock's per-key ledger, the signature and the
+      form rules (artist and track present, no timestamp) from the mock's handler.
+    verification: >-
+      On 2026-11-01 at f3, `make simulate-delivery` passed: 8 notices over 7 cases,
+      each with 0 track.scrobble POSTs, 0 reads, 0 stored plays and 0 ledger rows. Each
+      case repeated the same track over 4 updates; the success case then changed track
+      for its second notice. Error 9 stored auth_required and error 29 stored
+      rate_limited_until. The 31 existing rows kept their 27 POSTs and 46 reads. The
+      member served 120 requests including simulation.ledger polls: 118 with status
+      200 and 2 with status 500, both from history_failure. lsof showed two listeners,
+      both on 127.0.0.1, and the port was closed after SIGINT.
+    source: scripts/run_delivery_simulation.py; `make simulate-delivery` output at f3
+    updated_at: "2026-11-01"
+
+  - id: now-playing-runner-differs-from-production
+    status: supported
+    claim: The Now Playing cases skip Home Assistant and use a shorter deadline.
+    reason: >-
+      The runner feeds samples to StreamSet itself, so ObservationRuntime, the
+      DeliveryService lifecycle and the entry fence are not part of this run. The test
+      suite covers those on a real Home Assistant loop against a local socket server.
+      The pacing gate and the 1 second deadline are those of
+      runner-differs-from-production. Unlike a scrobble timeout, the delayed answer is
+      only logged by the mock after the client gave up.
+    verification: Read from the runner; there is no production hook.
+    source: scripts/run_delivery_simulation.py:_async_run_notice_scenario
+    updated_at: "2026-11-01"
+
+  - id: historical-rows-are-not-the-installed-mode
+    status: supported
+    claim: >-
+      The 31 worker rows exercise the scrobbling worker directly through DeliveryCore,
+      with a fence that has no cutoff. A real entry runs it only while its scrobbling
+      switch is on, and only for listens started after that activation.
+    reason: >-
+      This run bypasses the switches and the entry, so it proves nothing about them.
+      The four switch combinations, the parked rows and the migration are shown by
+      the Home Assistant tests with real services, SQLite and a local socket server.
+    verification: tests/test_switch.py, tests/test_now_playing_delivery.py.
+    source: custom_components/personal_sonos_scrobbler/delivery.py:_async_start_worker
+    updated_at: "2026-11-01"
+
+  - id: now-playing-reply-shape
+    status: unknown
+    claim: >-
+      track.updateNowPlaying answers JSON with nowplaying.ignoredMessage.code, 0 when
+      accepted, and an ignored notice has a documented nonzero code from 1 to 5.
+    reason: >-
+      The documentation shows XML; the JSON is derived from it and from the scrobble
+      reply. The client accepts only code 0 and treats every other shape as a failed
+      notice. That can only cost a display update, never history.
+    verification: >-
+      Not verified live. Whether a notice is visible on the profile, how long it stays
+      and how a direct Spotify connection competes for the same display are also
+      unknown.
+    source: >-
+      https://www.last.fm/api/show/track.updateNowPlaying;
+      custom_components/personal_sonos_scrobbler/lastfm_delivery.py:_classify_now_playing
+    updated_at: "2026-11-01"
+
+  - id: delivery-json-shapes
+    status: unknown
+    claim: >-
+      Scrobble and history replies have the JSON shape the mock serves, including an
+      object for a single row or scrobble, a list otherwise, and numbers as strings
+      in history attributes.
+    reason: >-
+      The documentation shows XML; the JSON is derived from it. The client treats any
+      other shape as UNCERTAIN for a write and unknown for a read.
+    verification: >-
+      Not verified live. An empty history as totalPages 0 with an empty list is the
+      mock's choice. The mock adds no now-playing row, although the real history may;
+      unit tests cover that row, this run does not.
+    source: custom_components/personal_sonos_scrobbler/lastfm_delivery.py
+    updated_at: "2026-10-31"
+
+  - id: api-errors-arrive-under-http-200
+    status: conflicting
+    claim: API error codes arrive under HTTP 200, as the mock answers them.
+    reason: >-
+      The lastfm-auth context records a real invalid-key probe that returned HTTP 403
+      with error 10. The client reads the API code before the HTTP status, so the
+      outcome should match; this run only exercises HTTP 200.
+    verification: Not verified for scrobble or history against the real API.
+    source: postman/simulations/lastfm-auth/lastfm-auth.context.yaml
+    updated_at: "2026-10-31"
+
+  - id: history-consistency
+    status: unknown
+    claim: An accepted scrobble is visible in the next history read.
+    reason: >-
+      The mock is strictly consistent, so every ambiguous row resolves on its first
+      read. A real delay would keep a row uncertain for longer, and a play that never
+      appears ends expired, not resent. No read proves that no other writer lands later.
+    verification: Not verified live; the propagation delay is unknown.
+    source: postman/mocks/lastfm/default.js:storedRows
+    updated_at: "2026-10-31"
+
+  - id: from-to-bounds
+    status: unknown
+    claim: The history bounds from and to are exclusive.
+    reason: >-
+      The mock filters exclusively, as it reads the documentation, and the
+      client widens the window by 31 seconds on each side for that reason. If the
+      provider rounds further or ignores the bounds, the client's own inclusive
+      filter still applies, but this run does not exercise that.
+    verification: Not verified live.
+    source: >-
+      custom_components/personal_sonos_scrobbler/lastfm_delivery.py:history_window
+    updated_at: "2026-10-31"
+
+  - id: post-for-reads
+    status: unknown
+    claim: user.getRecentTracks accepts a form POST.
+    reason: >-
+      The documentation shows reads as GET; the client posts so the key stays out of
+      URLs. The mock answers 501 to anything else, which only shows what it models.
+      Form POST was observed for the two auth methods, not for this read.
+    verification: Not verified live.
+    source: custom_components/personal_sonos_scrobbler/lastfm_delivery.py:async_history
+    updated_at: "2026-10-31"
+
+  - id: timestamp-tolerance
+    status: unknown
+    claim: The provider stores the sent timestamp unchanged.
+    reason: >-
+      The mock stores it exactly, so these rows end as history_exact. If the provider
+      moves a timestamp, the same play would show as a nearby match and end as
+      duplicate with reason history_match, which is still no second POST.
+    verification: Not verified live.
+    source: custom_components/personal_sonos_scrobbler/delivery.py:_async_reconcile
+    updated_at: "2026-10-31"
+
+  - id: api-16-is-safe-to-retry
+    status: unknown
+    claim: API error 16 on track.scrobble means the play was not stored.
+    reason: >-
+      This is arguable. The code says a temporary error, not that nothing was written.
+      The client treats 11 and 16 as SAFE_RETRY, and the mock stores nothing before answering either. If the provider can store and then
+      answer 16, the retry writes a duplicate; UNCERTAIN would avoid that at the cost
+      of a read.
+    verification: Not verified live; the mock cannot show this either way.
+    source: custom_components/personal_sonos_scrobbler/lastfm_delivery.py:_SAFE_RETRY_CODES
+    updated_at: "2026-10-31"
+
+fingerprints:
+  - id: f1
+    date: "2026-10-31"
+    version: 0.3.0 development tree
+    cli: postman 1.75.0
+  - id: f2
+    date: "2026-10-31"
+    version: 0.3.0 with the COMMIT-fault correction
+    cli: postman 1.75.0
+  - id: f3
+    date: "2026-11-01"
+    version: 0.4.0
+    cli: postman 1.75.0
+  - id: f4
+    date: "2026-11-01"
+    version: 0.5.0 development tree
+    cli: postman 1.75.0
+  - id: f5
+    date: "2026-11-01"
+    version: 0.5.0 with the switch order and period boundary fix
+    cli: postman 1.75.0
+  - id: f6
+    date: "2026-11-01"
+    version: 0.5.0 with the period clock read after the query
+    cli: postman 1.75.0
+  - id: f7
+    date: "2026-11-01"
+    version: 0.8.0 release candidate
+    cli: postman 1.75.0

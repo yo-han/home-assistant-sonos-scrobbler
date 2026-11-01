@@ -1,0 +1,14 @@
+{
+  "domain": "personal_sonos_scrobbler",
+  "name": "Personal Sonos Scrobbler",
+  "after_dependencies": ["sonos"],
+  "codeowners": ["@yo-han"],
+  "config_flow": true,
+  "documentation": "https://github.com/yo-han/home-assistant-sonos-scrobbler",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/yo-han/home-assistant-sonos-scrobbler/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.8.0"
+}

@@ -1,0 +1,43 @@
+[project]
+name = "personal-sonos-scrobbler"
+version = "0.8.0"
+description = "Home Assistant integration for Spotify on Sonos and Last.fm"
+readme = "README.md"
+requires-python = ">=3.14.2,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "async-upnp-client==0.48.2",
+    "defusedxml==0.7.1",
+    "homeassistant==2026.10.4",
+    "ifaddr==0.2.0",
+    "mypy==2.4.1",
+    "pytest-homeassistant-custom-component==0.13.375",
+    "ruff==0.17.3",
+    "soco==0.31.2",
+    "sonos-websocket==0.2.0",
+    "zeroconf==0.151.5",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF", "ASYNC", "T20", "LOG", "G"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["custom_components", "scripts"]
+explicit_package_bases = true
+mypy_path = "."
