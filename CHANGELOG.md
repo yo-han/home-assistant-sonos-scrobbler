@@ -2,6 +2,14 @@
 
 Versions follow the integration's `manifest.json`.
 
+## Unreleased
+
+- Document Marketplace installation on Home Assistant 2026.11 and migration from
+  HACS, while retaining installation on the supported 2026.10.4 minimum.
+- Categorize the integration under music and radio services for Marketplace.
+- Keep the component domain, stored account, speaker choices and delivery flags
+  unchanged during the store transition.
+
 ## 0.8.1 (2026-11-01)
 
 - Use Home Assistant Sonos Scrobbler in Home Assistant, HACS, documentation and the

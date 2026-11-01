@@ -5,7 +5,7 @@ Engineering notes for contributors. User documentation is in the
 
 ## Layout
 
-- `custom_components/personal_sonos_scrobbler/`: the integration, and all HACS installs.
+- `custom_components/personal_sonos_scrobbler/`: the integration, and all HACS/Marketplace installs.
 - `custom_components/personal_sonos_scrobbler/brand/`: the icons Home Assistant shows.
 - `assets/brand/icon.svg`: their editable source, not shipped.
 - `speaker_controls.py` in the integration: the speaker catalog and the one writer of
@@ -38,6 +38,13 @@ without a schedule. Hassfest can run locally; on arm64 it needs emulation:
 docker run --rm --platform linux/amd64 -v "$PWD:/github/workspace" \
   ghcr.io/home-assistant/hassfest
 ```
+
+## Marketplace installation and migration
+
+See [Marketplace compatibility](marketplace.md) for the exact beta, reproducible
+Docker command, isolated network, assertions and test limits. The CI runtime job
+uses real Home Assistant startup independently of the stable pytest fixture plugin.
+The normal `make test` gate stays pinned to the minimum supported Home Assistant.
 
 ## Brand icons
 

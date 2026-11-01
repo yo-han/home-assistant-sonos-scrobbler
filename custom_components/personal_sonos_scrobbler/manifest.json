@@ -2,6 +2,7 @@
   "domain": "personal_sonos_scrobbler",
   "name": "Home Assistant Sonos Scrobbler",
   "after_dependencies": ["sonos"],
+  "categories": ["media_entertainment.music_radio_services"],
   "codeowners": ["@yo-han"],
   "config_flow": true,
   "documentation": "https://github.com/yo-han/home-assistant-sonos-scrobbler",
