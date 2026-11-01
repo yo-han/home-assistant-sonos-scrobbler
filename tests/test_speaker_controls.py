@@ -12,7 +12,10 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.personal_sonos_scrobbler import async_unload_entry
+from custom_components.personal_sonos_scrobbler import (
+    async_migrate_entry,
+    async_unload_entry,
+)
 from custom_components.personal_sonos_scrobbler.const import (
     CONF_ENTITY_REGISTRY_IDS,
     CONF_NOW_PLAYING,
@@ -1135,9 +1138,15 @@ async def test_a_switch_shows_the_bare_speaker_name_in_each_language(
 
 @pytest.mark.parametrize(
     ("old_title", "new_title"),
-    [(LEGACY_TITLE, TITLE), ("Muziek", "Muziek")],
-    ids=["default", "user_title"],
+    [
+        (LEGACY_TITLE, TITLE),
+        ("Personal Sonos Scrobbler", TITLE),
+        ("Muziek", "Muziek"),
+    ],
+    ids=["pilot_default", "public_default", "user_title"],
 )
+@pytest.mark.parametrize("minor_version", [2, 3])
+@pytest.mark.parametrize("device_name_by_user", [None, "Eigen audio"])
 async def test_an_upgrade_renames_only_defaults_and_keeps_every_identity(
     pilot: Pilot,
     entity_registry: er.EntityRegistry,
@@ -1147,19 +1156,22 @@ async def test_an_upgrade_renames_only_defaults_and_keeps_every_identity(
     room: Room,
     old_title: str,
     new_title: str,
+    minor_version: int,
+    device_name_by_user: str | None,
 ) -> None:
     entry = pilot.entry
     pilot.hass.config_entries.async_update_entry(
         entry,
         title=old_title,
-        minor_version=2,
+        minor_version=minor_version,
         data={**entry.data, CONF_NOW_PLAYING: True, CONF_NOW_PLAYING_EPOCH: 3},
     )
     device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.entry_id)},
-        name=LEGACY_TITLE,
+        name=old_title,
     )
+    device_registry.async_update_device(device.id, name_by_user=device_name_by_user)
     kept = entity_registry.async_get_or_create(
         "switch",
         DOMAIN,
@@ -1180,7 +1192,10 @@ async def test_an_upgrade_renames_only_defaults_and_keeps_every_identity(
     )
     entity_registry.async_update_entity(renamed.entity_id, name="Mijn zolder")
     room.play(friendly_name="Keuken")
+    stored_data = dict(entry.data)
 
+    assert await async_migrate_entry(pilot.hass, entry)
+    assert entry.data == stored_data
     await pilot.setup()
 
     assert entry.title == new_title
@@ -1190,6 +1205,7 @@ async def test_an_upgrade_renames_only_defaults_and_keeps_every_identity(
     upgraded = device_registry.async_get(device.id)
     assert upgraded is not None
     assert upgraded.name == TITLE
+    assert upgraded.name_by_user == device_name_by_user
     assert switch_of(pilot, sonos_player) == kept.entity_id
     assert switch_of(pilot, attic_player) == renamed.entity_id
     speaker = entity_registry.async_get(kept.entity_id)
@@ -1212,7 +1228,7 @@ async def test_a_new_entry_gets_the_public_name(
         dr.async_get(hass), pilot.entry.entry_id
     )
 
-    assert [device.name for device in devices] == ["Personal Sonos Scrobbler"]
+    assert [device.name for device in devices] == ["Home Assistant Sonos Scrobbler"]
     assert pilot.switch_id(Feature.NOW_PLAYING).startswith(
-        "switch.personal_sonos_scrobbler_"
+        "switch.home_assistant_sonos_scrobbler_"
     )

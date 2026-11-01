@@ -14,7 +14,7 @@ async def test_manifest_loads_as_custom_integration(hass: HomeAssistant) -> None
     assert integration.after_dependencies == ["sonos"]
     assert integration.iot_class == "calculated"
     assert integration.integration_type == "service"
-    assert str(integration.version) == "0.8.0"
+    assert str(integration.version) == "0.8.1"
     assert integration.config_flow is True
     assert integration.documentation == (
         "https://github.com/yo-han/home-assistant-sonos-scrobbler"

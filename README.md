@@ -1,4 +1,4 @@
-# Personal Sonos Scrobbler
+# Home Assistant Sonos Scrobbler
 
 A Home Assistant custom integration that observes Spotify on the Sonos speakers you
 include, each with its own switch. It shows the current track and speaker on local
@@ -35,7 +35,7 @@ Install through HACS as a custom repository, or use the manual package from a re
 
 1. In HACS, open the menu and choose **Custom repositories**.
 2. Add `https://github.com/yo-han/home-assistant-sonos-scrobbler` with type **Integration**.
-3. Install **Personal Sonos Scrobbler** and restart Home Assistant.
+3. Install **Home Assistant Sonos Scrobbler** and restart Home Assistant.
 
 HACS offers releases only, not the development branch. It installs just the
 `custom_components/personal_sonos_scrobbler/` folder.
@@ -53,12 +53,12 @@ default catalog; that listing is a separate, later review by the HACS project.
    [latest release](https://github.com/yo-han/home-assistant-sonos-scrobbler/releases/latest):
 
    ```sh
-   BASE=https://github.com/yo-han/home-assistant-sonos-scrobbler/releases/download/v0.8.0
-   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.0.zip"
-   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.0.zip.sha256"
+   BASE=https://github.com/yo-han/home-assistant-sonos-scrobbler/releases/download/v0.8.1
+   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.1.zip"
+   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.1.zip.sha256"
    ```
 
-3. Verify with `shasum -a 256 -c personal_sonos_scrobbler-0.8.0.zip.sha256`, which must
+3. Verify with `shasum -a 256 -c personal_sonos_scrobbler-0.8.1.zip.sha256`, which must
    print `OK`.
 4. Extract into the Home Assistant configuration directory so files are in
    `custom_components/personal_sonos_scrobbler/`, replacing the previous code.
@@ -66,17 +66,18 @@ default catalog; that listing is a separate, later review by the HACS project.
    account: those speakers appear with their switch on, every other speaker with its
    switch off. Upgrading from 0.4.0 keeps Now Playing as it was and leaves scrobbling
    off, whatever the old entry stored. A new entry starts with both switches off.
-   From a build before 0.8.0, the old default name of the device and entry becomes
-   Personal Sonos Scrobbler and speaker switches lose their old **Include** or Dutch **Meenemen** prefix.
+   The default name of the device and entry becomes Home Assistant Sonos Scrobbler.
+   Builds before 0.8.0 also lose the speaker switches’ old **Include** or Dutch
+   **Meenemen** prefix.
    Entity ids, automations and any name you set yourself stay as they were.
 
 Do not delete the integration as an upgrade step: deletion removes its local data.
 
 ## Setup
 
-Go to **Settings → Devices & services → Add integration**, choose **Personal Sonos
-Scrobbler** and select the Sonos players to include, or select none and use the
-switches afterwards. Nothing is selected for you. There is no YAML. Only enabled
+Go to **Settings → Devices & services → Add integration**, choose
+**Home Assistant Sonos Scrobbler** and select the Sonos players to include, or select
+none and use the switches afterwards. Nothing is selected for you. There is no YAML. Only enabled
 `media_player` entities registered by the built-in `sonos` integration can be selected.
 
 The local sensors work straight away for the speakers you included. Link an account only if you want to send to

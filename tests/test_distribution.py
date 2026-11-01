@@ -30,7 +30,7 @@ def key_paths(value: Any, prefix: str = "") -> set[str]:
 
 def test_hacs_installs_the_component_from_a_release_only() -> None:
     assert load(ROOT / "hacs.json") == {
-        "name": "Personal Sonos Scrobbler",
+        "name": "Home Assistant Sonos Scrobbler",
         "homeassistant": "2026.10.4",
         "hide_default_branch": True,
     }
