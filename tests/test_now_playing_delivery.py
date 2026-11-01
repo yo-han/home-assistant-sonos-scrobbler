@@ -2,11 +2,14 @@
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from datetime import timedelta
 from itertools import pairwise
 from typing import Any
 
 import pytest
+from aiohttp import web
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -29,6 +32,9 @@ from custom_components.personal_sonos_scrobbler.delivery import (
     Fence,
     NoticeSender,
     delivery_service,
+)
+from custom_components.personal_sonos_scrobbler.lastfm_delivery import (
+    LastFmDeliveryClient,
 )
 from custom_components.personal_sonos_scrobbler.outbox import OutboxError
 from custom_components.personal_sonos_scrobbler.streams import TOPOLOGY_SETTLE_SECONDS
@@ -588,9 +594,50 @@ async def test_notices_go_one_at_a_time(pilot: Pilot, room: Room) -> None:
     await sent(pilot, "One", "Three")
 
 
+@pytest.mark.parametrize("delay_receipt", [False, True])
 async def test_notices_and_delivery_share_one_request_budget(
-    pilot: Pilot, room: Room
+    pilot: Pilot,
+    room: Room,
+    monkeypatch: pytest.MonkeyPatch,
+    freezer: FrozenDateTimeFactory,
+    delay_receipt: bool,
 ) -> None:
+    """Pacing governs client request starts, not when a server reads a body."""
+    dispatched: list[tuple[str, float]] = []
+    delayed = False
+    original_post = LastFmDeliveryClient._async_post
+    original_read_body = web.Request.post
+    original_linger = Pilot.linger
+
+    async def record_dispatch(
+        client: LastFmDeliveryClient,
+        form: Mapping[str, str],
+        limit: int,
+        context: str,
+    ) -> Any:
+        dispatched.append((form["method"], dt_util.utcnow().timestamp()))
+        return await original_post(client, form, limit, context)
+
+    async def read_body(request: web.Request) -> Any:
+        nonlocal delayed
+        form = await original_read_body(request)
+        if delay_receipt and not delayed and form.get("method") == RECENT:
+            # Model a request that is sent on time but reaches the server late.
+            # Its response can leave the next legal request's slot already due.
+            delayed = True
+            freezer.tick(timedelta(seconds=SPACING))
+        return form
+
+    async def linger_until_post(built: Pilot) -> None:
+        await original_linger(built)
+        if delayed:
+            # Keep the clock still after the delayed history read. The real
+            # worker/SQLite/HTTP chain must reach the next already-due request.
+            await built.reach(lambda: built.posts() == 1)
+
+    monkeypatch.setattr(LastFmDeliveryClient, "_async_post", record_dispatch)
+    monkeypatch.setattr(web.Request, "post", read_body)
+    monkeypatch.setattr(Pilot, "linger", linger_until_post)
     await pilot.linked()
     await pilot.accept_now()
     pilot.server.queue(RECENT, history())
@@ -608,14 +655,25 @@ async def test_notices_and_delivery_share_one_request_budget(
             break
     await pilot.quiet()
 
-    moments = sorted(
-        call.received_at
+    received = [
+        call
         for call in pilot.server.requests
         if call.form["method"] in {NOW, RECENT, SCROBBLE}
-    )
+    ]
     assert pilot.posts() == 1
     assert len(titles(pilot)) > 2
-    assert all(later - earlier >= SPACING for earlier, later in pairwise(moments))
+    assert [method for method, _ in dispatched] == [
+        call.form["method"] for call in received
+    ]
+    assert all(
+        later[1] - earlier[1] >= SPACING for earlier, later in pairwise(dispatched)
+    ), dispatched
+    if delay_receipt:
+        assert delayed
+        # Receipt times can coincide despite correctly spaced client starts.
+        assert pilot.server.calls(RECENT)[0].received_at == (
+            pilot.server.calls(SCROBBLE)[0].received_at
+        )
 
 
 async def test_a_slow_claim_and_a_notice_keep_their_distance(
