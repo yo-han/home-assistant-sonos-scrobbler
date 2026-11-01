@@ -96,12 +96,12 @@ and the distinction between automated tests and a live installation.
    [latest release](https://github.com/yo-han/home-assistant-sonos-scrobbler/releases/latest):
 
    ```sh
-   BASE=https://github.com/yo-han/home-assistant-sonos-scrobbler/releases/download/v0.8.1
-   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.1.zip"
-   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.1.zip.sha256"
+   BASE=https://github.com/yo-han/home-assistant-sonos-scrobbler/releases/download/v0.8.2
+   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.2.zip"
+   curl -fLO "$BASE/personal_sonos_scrobbler-0.8.2.zip.sha256"
    ```
 
-3. Verify with `shasum -a 256 -c personal_sonos_scrobbler-0.8.1.zip.sha256`, which must
+3. Verify with `shasum -a 256 -c personal_sonos_scrobbler-0.8.2.zip.sha256`, which must
    print `OK`.
 4. Extract into the Home Assistant configuration directory so files are in
    `custom_components/personal_sonos_scrobbler/`, replacing the previous code.

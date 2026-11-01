@@ -48,6 +48,7 @@ async def run():
     requests = []
     misses = []
     cache = read(FIXTURES / "responses.json")
+    fixture_ref = read(FIXTURES / "provenance.json")["github_metadata_ref"]
 
     async def respond(request):
         target = request.query["url"]
@@ -144,7 +145,7 @@ async def run():
                 repository = manager.repositories.get_by_full_name(REPOSITORY)
                 require(repository is not None, "Custom repository missing")
                 manager.common.custom_repositories.add(repository.data.id)
-                await repository.async_install_repository(ref="v0.8.1")
+                await repository.async_install_repository(ref=fixture_ref)
                 require(
                     repository.data.installed,
                     "Marketplace did not mark install complete",
@@ -193,7 +194,7 @@ async def run():
                     "Installed repository lost",
                 )
                 require(
-                    repository.data.installed_version == "v0.8.1",
+                    repository.data.installed_version == fixture_ref,
                     "Installed version lost",
                 )
                 require(

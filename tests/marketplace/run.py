@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DOMAIN = "personal_sonos_scrobbler"
 REPOSITORY = "yo-han/home-assistant-sonos-scrobbler"
 REPOSITORY_ID = "1442063425"
+METADATA_REF = "v0.8.1"  # A published fixture ref, independent of candidate version.
 IMAGES = {
     "stable": (
         "ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:"
@@ -55,7 +57,8 @@ def fetch(url):
         return response.read()
 
 
-def prepare(fixtures):
+def prepare(fixtures, published_release=None):
+    fixture_ref = published_release or METADATA_REF
     fixtures.mkdir(parents=True)
     paths = [
         ROOT / "hacs.json",
@@ -71,7 +74,10 @@ def prepare(fixtures):
             output.writestr(
                 "candidate/" + str(path.relative_to(ROOT)), path.read_bytes()
             )
-    (fixtures / "candidate.zip").write_bytes(archive.getvalue())
+    archive_url = f"https://github.com/{REPOSITORY}/archive/refs/tags/{fixture_ref}.zip"
+    (fixtures / "candidate.zip").write_bytes(
+        fetch(archive_url) if published_release else archive.getvalue()
+    )
     write(
         fixtures / "component-hashes.json",
         {
@@ -85,7 +91,13 @@ def prepare(fixtures):
     cache = {}
     base = f"https://api.github.com/repos/{REPOSITORY}"
     for number, suffix in enumerate(
-        ("", "/releases", "/git/trees/v0.8.1", "/commits/v0.8.1", "/branches/main")
+        (
+            "",
+            "/releases",
+            f"/git/trees/{fixture_ref}",
+            f"/commits/{fixture_ref}",
+            "/branches/main",
+        )
     ):
         url = base + suffix
         payload = fetch(url + ("?recursive=1" if "/trees/" in suffix else ""))
@@ -99,7 +111,7 @@ def prepare(fixtures):
         relative = str(path.relative_to(ROOT))
         filename = "file-" + hashlib.sha256(relative.encode()).hexdigest()
         (fixtures / filename).write_bytes(path.read_bytes())
-        for ref in ("v0.8.1", "tags/v0.8.1", "main"):
+        for ref in (fixture_ref, f"tags/{fixture_ref}", "main"):
             cache[f"raw.githubusercontent.com/{REPOSITORY}/{ref}/{relative}"] = {
                 "file": filename,
                 "content_type": "text/plain",
@@ -117,7 +129,7 @@ def prepare(fixtures):
             "file": json_filename,
             "content_type": "application/json",
         }
-    cache[f"github.com/{REPOSITORY}/archive/refs/tags/v0.8.1.zip"] = {
+    cache[archive_url.removeprefix("https://")] = {
         "file": "candidate.zip",
         "content_type": "application/zip",
     }
@@ -151,7 +163,8 @@ def prepare(fixtures):
     write(
         fixtures / "provenance.json",
         {
-            "github_metadata_ref": "v0.8.1",
+            "github_metadata_ref": fixture_ref,
+            "published_archive": bool(published_release),
             "candidate_component_sha256": read(fixtures / "component-hashes.json"),
             "hacs_release": hacs["tag_name"],
             "hacs_zip_sha256": hashlib.sha256(payload).hexdigest(),
@@ -159,7 +172,12 @@ def prepare(fixtures):
             "limits": [
                 "GitHub metadata replayed offline; OAuth and catalog acceptance "
                 "are not tested",
-                "Candidate archive built from this checkout, not a published release",
+                (
+                    "Archive downloaded anonymously from the published GitHub tag"
+                    if published_release
+                    else "Candidate archive built from this checkout, "
+                    "not a published release"
+                ),
                 "HACS storage/config fixtures seeded after a real 2026.10.4 run",
                 "Rate limit is synthetic and models a connected GitHub account",
                 "No real speakers or Last.fm requests",
@@ -229,6 +247,7 @@ def docker_run(phase, image, config, fixtures, output, network):
 
 
 def seed_hacs(config, fixtures):
+    fixture_ref = read(fixtures / "provenance.json")["github_metadata_ref"]
     before = read(config / "seed-report.json")["before"]
     entries_file = config / ".storage" / "core.config_entries"
     entries = read(entries_file)
@@ -284,8 +303,8 @@ def seed_hacs(config, fixtures):
                 "category": "integration",
                 "domain": DOMAIN,
                 "installed": True,
-                "version_installed": "v0.8.1",
-                "last_version": "v0.8.1",
+                "version_installed": fixture_ref,
+                "last_version": fixture_ref,
                 "config_flow": True,
                 "releases": True,
                 "manifest": read(ROOT / "hacs.json"),
@@ -312,11 +331,20 @@ def main():
         required=True,
         help="New, disposable artifact directory; must not exist",
     )
+    parser.add_argument(
+        "--published-release",
+        metavar="TAG",
+        help="Download the real public source archive of this stable release",
+    )
     args = parser.parse_args()
+    if args.published_release and not re.fullmatch(
+        r"v[0-9]+\.[0-9]+\.[0-9]+", args.published_release
+    ):
+        parser.error("--published-release must be a stable tag such as v0.8.2")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     fixtures = output / "fixtures"
-    prepare(fixtures)
+    prepare(fixtures, args.published_release)
     network = "sonos-marketplace-" + uuid.uuid4().hex[:12]
     subprocess.run(
         ["docker", "network", "create", "--internal", network],
