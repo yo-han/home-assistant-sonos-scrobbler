@@ -2,11 +2,14 @@
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from datetime import timedelta
 from itertools import pairwise
 from typing import Any
 
 import pytest
+from aiohttp import web
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -24,9 +27,16 @@ from custom_components.personal_sonos_scrobbler.controls import Feature
 from custom_components.personal_sonos_scrobbler.delivery import (
     BACKOFF_BASE_SECONDS,
     MIN_CALL_SPACING_SECONDS,
+    DeliveryCore,
     DeliveryStatus,
+    Fence,
+    NoticeSender,
     delivery_service,
 )
+from custom_components.personal_sonos_scrobbler.lastfm_delivery import (
+    LastFmDeliveryClient,
+)
+from custom_components.personal_sonos_scrobbler.outbox import OutboxError
 from custom_components.personal_sonos_scrobbler.streams import TOPOLOGY_SETTLE_SECONDS
 from tests.delivery_harness import (
     RECENT,
@@ -335,19 +345,92 @@ async def test_a_storage_failure_sends_nothing(pilot: Pilot, room: Room) -> None
     assert titles(pilot) == []
 
 
+@pytest.mark.parametrize("wake_during_notice", [False, True])
 async def test_an_unreadable_gate_holds_the_notice_and_leaves_delivery_alone(
-    pilot: Pilot, room: Room, monkeypatch: pytest.MonkeyPatch
+    pilot: Pilot,
+    room: Room,
+    monkeypatch: pytest.MonkeyPatch,
+    wake_during_notice: bool,
 ) -> None:
+    """Fault only the notice's real SQL reads, while the worker stays enabled."""
+    original_notice_gate = NoticeSender._async_gates_open
+    original_worker_gate = DeliveryCore._async_check_gates
+    failed_notice = asyncio.Event()
+    worker_checks = 0
+    worker_checks_before_fault = 0
+
+    async def count_worker_gate(core: DeliveryCore, fence: Fence) -> None:
+        nonlocal worker_checks
+        await original_worker_gate(core, fence)
+        worker_checks += 1
+
+    async def unreadable_notice_gate(sender: NoticeSender, fence: Fence) -> bool:
+        nonlocal worker_checks_before_fault
+        worker_checks_before_fault = worker_checks
+        # The real sender holds admission here. The global fault must not cover
+        # an unrelated worker step, which is required to stop on the same error.
+        with monkeypatch.context() as fault:
+            fail_on(fault, "SELECT value FROM meta")
+            if wake_during_notice:
+                pilot.service._wake.set()
+            try:
+                return await original_notice_gate(sender, fence)
+            except OutboxError:
+                failed_notice.set()
+                raise
+
+    monkeypatch.setattr(DeliveryCore, "_async_check_gates", count_worker_gate)
+    monkeypatch.setattr(NoticeSender, "_async_gates_open", unreadable_notice_gate)
     await pilot.linked()
-    await pilot.quiet()
+    await pilot.reach(lambda: worker_checks > 0)
 
-    with monkeypatch.context() as patch:
-        fail_on(patch, "SELECT value FROM meta")
-        room.play()
-        await pilot.quiet()
+    room.play()
+    await pilot.reach(failed_notice.is_set)
+    notice = pilot.service._notices
+    assert notice is not None
+    await pilot.reach(notice.done)
+    notice.result()
 
+    # Also force a real gate read after the notice failed. A healthy status
+    # before that read would not prove that the fault was isolated.
+    pilot.service._wake.set()
+    await pilot.reach(lambda: worker_checks > worker_checks_before_fault)
     assert titles(pilot) == []
     assert pilot.service.status.status is DeliveryStatus.READY
+    assert pilot.service.status.error_code is None
+    assert pilot.service._worker is not None
+    assert not pilot.service._worker.done()
+    no_trace(pilot)
+
+
+async def test_a_shared_unreadable_gate_stops_the_scrobbling_worker(
+    pilot: Pilot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same real SQL failure must still fail closed if the worker reads it."""
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    original_gate = DeliveryCore._async_check_gates
+
+    async def held_gate(core: DeliveryCore, fence: Fence) -> None:
+        entered.set()
+        await release.wait()
+        await original_gate(core, fence)
+
+    monkeypatch.setattr(DeliveryCore, "_async_check_gates", held_gate)
+    await pilot.linked()
+    try:
+        await pilot.reach(entered.is_set)
+        with monkeypatch.context() as fault:
+            fail_on(fault, "SELECT value FROM meta")
+            release.set()
+            await pilot.reach(
+                lambda: pilot.service.status.status is DeliveryStatus.STORAGE_ERROR
+            )
+        assert pilot.service.status.error_code == "storage_error"
+        assert titles(pilot) == []
+        no_trace(pilot)
+    finally:
+        release.set()
 
 
 async def test_a_stored_cooldown_stops_a_notice_without_a_later_send(
@@ -511,9 +594,50 @@ async def test_notices_go_one_at_a_time(pilot: Pilot, room: Room) -> None:
     await sent(pilot, "One", "Three")
 
 
+@pytest.mark.parametrize("delay_receipt", [False, True])
 async def test_notices_and_delivery_share_one_request_budget(
-    pilot: Pilot, room: Room
+    pilot: Pilot,
+    room: Room,
+    monkeypatch: pytest.MonkeyPatch,
+    freezer: FrozenDateTimeFactory,
+    delay_receipt: bool,
 ) -> None:
+    """Pacing governs client request starts, not when a server reads a body."""
+    dispatched: list[tuple[str, float]] = []
+    delayed = False
+    original_post = LastFmDeliveryClient._async_post
+    original_read_body = web.Request.post
+    original_linger = Pilot.linger
+
+    async def record_dispatch(
+        client: LastFmDeliveryClient,
+        form: Mapping[str, str],
+        limit: int,
+        context: str,
+    ) -> Any:
+        dispatched.append((form["method"], dt_util.utcnow().timestamp()))
+        return await original_post(client, form, limit, context)
+
+    async def read_body(request: web.Request) -> Any:
+        nonlocal delayed
+        form = await original_read_body(request)
+        if delay_receipt and not delayed and form.get("method") == RECENT:
+            # Model a request that is sent on time but reaches the server late.
+            # Its response can leave the next legal request's slot already due.
+            delayed = True
+            freezer.tick(timedelta(seconds=SPACING))
+        return form
+
+    async def linger_until_post(built: Pilot) -> None:
+        await original_linger(built)
+        if delayed:
+            # Keep the clock still after the delayed history read. The real
+            # worker/SQLite/HTTP chain must reach the next already-due request.
+            await built.reach(lambda: built.posts() == 1)
+
+    monkeypatch.setattr(LastFmDeliveryClient, "_async_post", record_dispatch)
+    monkeypatch.setattr(web.Request, "post", read_body)
+    monkeypatch.setattr(Pilot, "linger", linger_until_post)
     await pilot.linked()
     await pilot.accept_now()
     pilot.server.queue(RECENT, history())
@@ -531,14 +655,25 @@ async def test_notices_and_delivery_share_one_request_budget(
             break
     await pilot.quiet()
 
-    moments = sorted(
-        call.received_at
+    received = [
+        call
         for call in pilot.server.requests
         if call.form["method"] in {NOW, RECENT, SCROBBLE}
-    )
+    ]
     assert pilot.posts() == 1
     assert len(titles(pilot)) > 2
-    assert all(later - earlier >= SPACING for earlier, later in pairwise(moments))
+    assert [method for method, _ in dispatched] == [
+        call.form["method"] for call in received
+    ]
+    assert all(
+        later[1] - earlier[1] >= SPACING for earlier, later in pairwise(dispatched)
+    ), dispatched
+    if delay_receipt:
+        assert delayed
+        # Receipt times can coincide despite correctly spaced client starts.
+        assert pilot.server.calls(RECENT)[0].received_at == (
+            pilot.server.calls(SCROBBLE)[0].received_at
+        )
 
 
 async def test_a_slow_claim_and_a_notice_keep_their_distance(

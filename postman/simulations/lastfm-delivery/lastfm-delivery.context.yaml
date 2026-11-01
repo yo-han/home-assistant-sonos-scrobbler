@@ -247,6 +247,29 @@ assumptions:
     source: custom_components/personal_sonos_scrobbler/lastfm_delivery.py:_SAFE_RETRY_CODES
     updated_at: "2026-10-31"
 
+  - id: runtime-outcomes-with-ci-scheduling-regressions
+    status: supported
+    claim: >-
+      At f8, the unchanged 0.8.1 runtime retains the expected persisted outcomes
+      and request counts in the 31 worker rows and 7 notice cases of this synthetic
+      simulation.
+    reason: >-
+      The changes isolate SQL fault injection and synchronize Home Assistant
+      background-status assertions in the test suite. No runtime, HTTP client,
+      mock handler or simulation runner changed. The simulation checks the core
+      and notice sender directly; the controlled service interleavings are
+      exercised separately by the real Home Assistant/SQLite/loopback tests.
+    verification: >-
+      On 2026-11-01 at f8, the existing delivery simulation passed with 27 scrobble
+      POSTs, 46 history reads and 8 notices over 7 notice cases. The member recorded
+      120 routed requests: 118 status 200 and 2 status 500. Both listeners were on
+      127.0.0.1 and the port closed after SIGINT. This is stand-in evidence only;
+      it does not establish any new guarantee about Last.fm or independent writers.
+    source: >-
+      scripts/run_delivery_simulation.py; tests/test_now_playing_delivery.py;
+      tests/test_sensor.py
+    updated_at: "2026-11-01"
+
 fingerprints:
   - id: f1
     date: "2026-10-31"
@@ -275,4 +298,9 @@ fingerprints:
   - id: f7
     date: "2026-11-01"
     version: 0.8.0 release candidate
+    cli: postman 1.75.0
+  - id: f8
+    date: "2026-11-01"
+    commit: ed193875835330c6d16b0c53b28d9cbb375d6245
+    version: 0.8.1; working tree changes in test synchronization and the CI visibility guard
     cli: postman 1.75.0
