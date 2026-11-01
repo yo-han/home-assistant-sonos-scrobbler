@@ -24,9 +24,13 @@ from custom_components.personal_sonos_scrobbler.controls import Feature
 from custom_components.personal_sonos_scrobbler.delivery import (
     BACKOFF_BASE_SECONDS,
     MIN_CALL_SPACING_SECONDS,
+    DeliveryCore,
     DeliveryStatus,
+    Fence,
+    NoticeSender,
     delivery_service,
 )
+from custom_components.personal_sonos_scrobbler.outbox import OutboxError
 from custom_components.personal_sonos_scrobbler.streams import TOPOLOGY_SETTLE_SECONDS
 from tests.delivery_harness import (
     RECENT,
@@ -335,19 +339,92 @@ async def test_a_storage_failure_sends_nothing(pilot: Pilot, room: Room) -> None
     assert titles(pilot) == []
 
 
+@pytest.mark.parametrize("wake_during_notice", [False, True])
 async def test_an_unreadable_gate_holds_the_notice_and_leaves_delivery_alone(
-    pilot: Pilot, room: Room, monkeypatch: pytest.MonkeyPatch
+    pilot: Pilot,
+    room: Room,
+    monkeypatch: pytest.MonkeyPatch,
+    wake_during_notice: bool,
 ) -> None:
+    """Fault only the notice's real SQL reads, while the worker stays enabled."""
+    original_notice_gate = NoticeSender._async_gates_open
+    original_worker_gate = DeliveryCore._async_check_gates
+    failed_notice = asyncio.Event()
+    worker_checks = 0
+    worker_checks_before_fault = 0
+
+    async def count_worker_gate(core: DeliveryCore, fence: Fence) -> None:
+        nonlocal worker_checks
+        await original_worker_gate(core, fence)
+        worker_checks += 1
+
+    async def unreadable_notice_gate(sender: NoticeSender, fence: Fence) -> bool:
+        nonlocal worker_checks_before_fault
+        worker_checks_before_fault = worker_checks
+        # The real sender holds admission here. The global fault must not cover
+        # an unrelated worker step, which is required to stop on the same error.
+        with monkeypatch.context() as fault:
+            fail_on(fault, "SELECT value FROM meta")
+            if wake_during_notice:
+                pilot.service._wake.set()
+            try:
+                return await original_notice_gate(sender, fence)
+            except OutboxError:
+                failed_notice.set()
+                raise
+
+    monkeypatch.setattr(DeliveryCore, "_async_check_gates", count_worker_gate)
+    monkeypatch.setattr(NoticeSender, "_async_gates_open", unreadable_notice_gate)
     await pilot.linked()
-    await pilot.quiet()
+    await pilot.reach(lambda: worker_checks > 0)
 
-    with monkeypatch.context() as patch:
-        fail_on(patch, "SELECT value FROM meta")
-        room.play()
-        await pilot.quiet()
+    room.play()
+    await pilot.reach(failed_notice.is_set)
+    notice = pilot.service._notices
+    assert notice is not None
+    await pilot.reach(notice.done)
+    notice.result()
 
+    # Also force a real gate read after the notice failed. A healthy status
+    # before that read would not prove that the fault was isolated.
+    pilot.service._wake.set()
+    await pilot.reach(lambda: worker_checks > worker_checks_before_fault)
     assert titles(pilot) == []
     assert pilot.service.status.status is DeliveryStatus.READY
+    assert pilot.service.status.error_code is None
+    assert pilot.service._worker is not None
+    assert not pilot.service._worker.done()
+    no_trace(pilot)
+
+
+async def test_a_shared_unreadable_gate_stops_the_scrobbling_worker(
+    pilot: Pilot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same real SQL failure must still fail closed if the worker reads it."""
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    original_gate = DeliveryCore._async_check_gates
+
+    async def held_gate(core: DeliveryCore, fence: Fence) -> None:
+        entered.set()
+        await release.wait()
+        await original_gate(core, fence)
+
+    monkeypatch.setattr(DeliveryCore, "_async_check_gates", held_gate)
+    await pilot.linked()
+    try:
+        await pilot.reach(entered.is_set)
+        with monkeypatch.context() as fault:
+            fail_on(fault, "SELECT value FROM meta")
+            release.set()
+            await pilot.reach(
+                lambda: pilot.service.status.status is DeliveryStatus.STORAGE_ERROR
+            )
+        assert pilot.service.status.error_code == "storage_error"
+        assert titles(pilot) == []
+        no_trace(pilot)
+    finally:
+        release.set()
 
 
 async def test_a_stored_cooldown_stops_a_notice_without_a_later_send(

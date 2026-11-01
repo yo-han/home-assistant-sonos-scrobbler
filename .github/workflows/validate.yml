@@ -11,7 +11,9 @@ permissions: {}
 
 jobs:
   hacs:
-    if: github.event.pull_request.draft != true
+    # HACS supports public repositories only. Tests and hassfest still run
+    # privately; the public distribution also runs HACS validation.
+    if: github.event.pull_request.draft != true && github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

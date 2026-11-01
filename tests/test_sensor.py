@@ -1,5 +1,6 @@
 """The status sensor exposes the snapshot and nothing else."""
 
+import asyncio
 from datetime import timedelta
 
 import pytest
@@ -15,6 +16,8 @@ from custom_components.personal_sonos_scrobbler.const import (
     SIGNAL_LASTFM_LINK_CHANGED,
 )
 from custom_components.personal_sonos_scrobbler.delivery import (
+    DeliveryCore,
+    DeliveryService,
     DeliveryStatus,
     account_hash,
     resolve_status,
@@ -411,20 +414,60 @@ async def test_queue_full_is_an_error_code_and_the_worker_keeps_draining(
     assert not worker.done()
 
 
+@pytest.mark.parametrize("hold_publication", [False, True])
 async def test_clock_regression_is_an_error_code(
-    pilot: Pilot, freezer: FrozenDateTimeFactory
+    pilot: Pilot,
+    freezer: FrozenDateTimeFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    hold_publication: bool,
 ) -> None:
+    """A sent commit is observable before the background status publication."""
+    detected = asyncio.Event()
+    release = asyncio.Event()
+    original_after_stop = DeliveryService._async_after_stop
+
+    async def after_stop(service: DeliveryService, core: DeliveryCore) -> bool:
+        if core.last_stop is not None and core.last_stop.code == "clock_regressed":
+            detected.set()
+            if hold_publication:
+                await release.wait()
+        return await original_after_stop(service, core)
+
+    monkeypatch.setattr(DeliveryService, "_async_after_stop", after_stop)
     await pilot.linked()
     await pilot.accept_now()
     pilot.server.queue(RECENT, history())
     pilot.server.queue(SCROBBLE, accepted())
     await pilot.past_grace()
     await pilot.delivered()
+    calls = len(pilot.server.requests)
+    high_water = int(
+        pilot.rows("SELECT value FROM meta WHERE key = 'clock_high_water'")[0][0]
+    )
 
     freezer.move_to(T0 + timedelta(seconds=60))
     await pilot.accept_now("second", start=1, key=KEY_B)
-    await pilot.quiet()
+    try:
+        await pilot.reach(detected.is_set)
+        if hold_publication:
+            # The guard has fired, but its Home Assistant sensor has not been
+            # published. Reading now reproduced the old intermittent failure.
+            assert delivery_state(pilot).attributes["error_code"] is None
+        assert len(pilot.server.requests) == calls
+        release.set()
+        await pilot.reach(
+            lambda: delivery_state(pilot).attributes["error_code"] == "clock_regressed"
+        )
 
-    state = delivery_state(pilot)
-    assert state.state == "retrying"
-    assert state.attributes["error_code"] == "clock_regressed"
+        state = delivery_state(pilot)
+        assert state.state == "retrying"
+        assert state.attributes["error_code"] == "clock_regressed"
+        assert pilot.state("second") == "pending"
+        assert len(pilot.server.requests) == calls
+        stored_high_water = int(
+            pilot.rows("SELECT value FROM meta WHERE key = 'clock_high_water'")[0][0]
+        )
+        assert stored_high_water >= high_water
+        assert stored_high_water > int((T0 + timedelta(seconds=60)).timestamp())
+    finally:
+        release.set()
