@@ -32,8 +32,10 @@ candidate archive is built from this checkout, not downloaded from an unpublishe
 release. All credentials and listening data are synthetic.
 
 Before publication, CI uses metadata from the pinned `v0.8.1` fixture ref and
-installs the current checkout's candidate archive. This avoids depending on a tag
-that does not exist yet. After publishing, verify the real public source archive:
+installs the current checkout's candidate archive. The replayed release list contains
+only that ref, so a newer publication cannot make the offline installer request an
+unrecorded tree. This avoids depending on a tag that does not exist yet. After
+publishing, verify the real public source archive:
 
 ```sh
 python3 tests/marketplace/run.py --published-release v0.8.2 \
