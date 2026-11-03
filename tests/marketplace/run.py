@@ -57,6 +57,36 @@ def fetch(url):
         return response.read()
 
 
+def prepare_github_metadata(fixtures, fixture_ref):
+    """Replay one published ref consistently, independent of newer releases."""
+    cache = {}
+    base = f"https://api.github.com/repos/{REPOSITORY}"
+    for number, suffix in enumerate(
+        (
+            "",
+            "/releases",
+            f"/git/trees/{fixture_ref}",
+            f"/commits/{fixture_ref}",
+            "/branches/main",
+        )
+    ):
+        url = base + suffix
+        if suffix == "/releases":
+            # Registration selects its tree from the release list before install.
+            # Only advertise the ref whose metadata and archive we record.
+            release = json.loads(fetch(f"{base}/releases/tags/{fixture_ref}"))
+            payload = json.dumps([release]).encode()
+        else:
+            payload = fetch(url + ("?recursive=1" if "/trees/" in suffix else ""))
+        filename = f"github-{number}.json"
+        (fixtures / filename).write_bytes(payload)
+        cache[url.removeprefix("https://")] = {
+            "file": filename,
+            "content_type": "application/json",
+        }
+    return cache
+
+
 def prepare(fixtures, published_release=None):
     fixture_ref = published_release or METADATA_REF
     fixtures.mkdir(parents=True)
@@ -88,25 +118,7 @@ def prepare(fixtures, published_release=None):
             if path.is_relative_to(ROOT / "custom_components" / DOMAIN)
         },
     )
-    cache = {}
-    base = f"https://api.github.com/repos/{REPOSITORY}"
-    for number, suffix in enumerate(
-        (
-            "",
-            "/releases",
-            f"/git/trees/{fixture_ref}",
-            f"/commits/{fixture_ref}",
-            "/branches/main",
-        )
-    ):
-        url = base + suffix
-        payload = fetch(url + ("?recursive=1" if "/trees/" in suffix else ""))
-        filename = f"github-{number}.json"
-        (fixtures / filename).write_bytes(payload)
-        cache[url.removeprefix("https://")] = {
-            "file": filename,
-            "content_type": "application/json",
-        }
+    cache = prepare_github_metadata(fixtures, fixture_ref)
     for path in paths:
         relative = str(path.relative_to(ROOT))
         filename = "file-" + hashlib.sha256(relative.encode()).hexdigest()

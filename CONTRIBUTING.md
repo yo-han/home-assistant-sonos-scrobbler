@@ -1,5 +1,8 @@
 # Contributing
 
+Development and releases are maintained in this public repository. Open issues
+and pull requests here.
+
 Open an issue before a larger change, so the approach can be agreed first.
 
 1. Branch from `main` and keep one logical change per commit, using Conventional

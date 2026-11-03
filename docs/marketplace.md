@@ -32,8 +32,10 @@ candidate archive is built from this checkout, not downloaded from an unpublishe
 release. All credentials and listening data are synthetic.
 
 Before publication, CI uses metadata from the pinned `v0.8.1` fixture ref and
-installs the current checkout's candidate archive. This avoids depending on a tag
-that does not exist yet. After publishing, verify the real public source archive:
+installs the current checkout's candidate archive. The replayed release list contains
+only that ref, so a newer publication cannot make the offline installer request an
+unrecorded tree. This avoids depending on a tag that does not exist yet. After
+publishing, verify the real public source archive:
 
 ```sh
 python3 tests/marketplace/run.py --published-release v0.8.2 \
@@ -97,10 +99,10 @@ Re-run the runtime check against the final 2026.11 release before claiming stabl
 ## Catalog submission and installation links
 
 Both HACS and Marketplace read the catalog maintained in
-[`hacs/default`](https://github.com/hacs/default). A public release is already
-available, but this repository is not yet listed in that catalog. A catalog
-submission remains a separate pull request after validation; the move to
-Marketplace does not automatically add this project.
+[`hacs/default`](https://github.com/hacs/default). This repository was added in
+[catalog pull request #13112](https://github.com/hacs/default/pull/13112).
+Search for **Home Assistant Sonos Scrobbler** in HACS or Marketplace; the README
+keeps custom repository instructions as a fallback while a local catalog refreshes.
 
 Keep `hacs.json`, the component layout, HACS validation and hassfest. The manifest
 uses the `media_entertainment.music_radio_services` category for discovery. Do not
