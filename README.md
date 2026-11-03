@@ -31,10 +31,10 @@ ListenBrainz support and there are no per-room or per-person accounts.
 
 ## Installation
 
-Use the built-in Marketplace on Home Assistant 2026.11 or newer, HACS on
-2026.10.4, or the manual package from a release. This is a community integration.
-It is not included in the shared Marketplace/HACS catalog yet; add its repository
-using the instructions below.
+Home Assistant Sonos Scrobbler is available in the shared Marketplace/HACS catalog.
+Search for **Home Assistant Sonos Scrobbler** in the built-in Marketplace on Home
+Assistant 2026.11 or newer, or in HACS on 2026.10.4. This is a community integration.
+A manual release package is also available below.
 
 [![Open the repository in Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=yo-han&repository=home-assistant-sonos-scrobbler&category=integration)
 
@@ -49,12 +49,9 @@ November 4, 2026. These instructions follow the
 1. Open **Settings → Marketplace** as an administrator. Marketplace comes with
    Home Assistant; no separate HACS installation is needed.
 2. Read and accept the community-project notice before installing anything.
-3. Choose **Add from link** and enter
-   `https://github.com/yo-han/home-assistant-sonos-scrobbler`.
-   Choose **Integration** if asked for the type.
-4. Connect GitHub when prompted. Adding a repository outside the shared catalog
-   requires a GitHub connection, even though catalog installations do not.
-5. Install **Home Assistant Sonos Scrobbler**. On a clean first installation,
+3. Search for **Home Assistant Sonos Scrobbler** and open its listing.
+   Installing from the shared catalog does not require a GitHub connection.
+4. Install the integration. On a clean first installation,
    continue into its setup flow without restarting. If Home Assistant already
    loaded this integration, follow the restart repair first.
 
@@ -63,14 +60,27 @@ already loaded still requires a Home Assistant restart.
 
 ### HACS: Home Assistant 2026.10.4
 
-1. In HACS, open the menu and choose **Custom repositories**.
-2. Add `https://github.com/yo-han/home-assistant-sonos-scrobbler` with type **Integration**.
-3. Install **Home Assistant Sonos Scrobbler** and restart Home Assistant.
+1. Open HACS and search for **Home Assistant Sonos Scrobbler**.
+2. Open its listing, install it and restart Home Assistant.
 
 HACS offers releases only, not the development branch. It installs just the
 `custom_components/personal_sonos_scrobbler/` folder.
 
 Continue with [Setup](#setup) after restarting.
+
+### Custom repository fallback
+
+If the integration does not appear in search yet, your catalog may still need to
+refresh. You can add the repository directly instead:
+
+- **Marketplace:** choose **Add from link** and enter
+  `https://github.com/yo-han/home-assistant-sonos-scrobbler`.
+  Choose **Integration** if asked, then connect GitHub when prompted. Adding a
+  repository by link requires a GitHub connection. Continue with the Marketplace
+  installation steps above.
+- **HACS:** open the menu, choose **Custom repositories**, and add
+  `https://github.com/yo-han/home-assistant-sonos-scrobbler` with type **Integration**.
+  Then install the integration and restart Home Assistant.
 
 ### Moving from HACS to Marketplace
 
